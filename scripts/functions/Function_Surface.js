@@ -70,7 +70,7 @@ function surface_resize(_id, _w, _h)
 
         if (g_webGL)
         {
-            format = pSurf.texture.webgl_textureid.format;
+            format = pSurf.texture.webgl_textureid.Format;
         }
 
         surface_create( _w,_h, format, _id );   //create new surface and replace existing in _id slot
