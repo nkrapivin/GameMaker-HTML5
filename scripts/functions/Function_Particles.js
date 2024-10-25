@@ -146,7 +146,7 @@ function ParticleSystemGetInfoImpl(_ind, _isInstance)
         var emitter = emitters[i];
         var pEmitterI = new GMLObject();
 
-        variable_struct_set(pEmitterI, "ind", i);
+        variable_struct_set(pEmitterI, "ind", MAKE_REF(REFID_PART_EMITTER, i));
         variable_struct_set(pEmitterI, "name", emitter.name);
         variable_struct_set(pEmitterI, "mode", emitter.mode);
         variable_struct_set(pEmitterI, "number", emitter.number);
@@ -168,7 +168,7 @@ function ParticleSystemGetInfoImpl(_ind, _isInstance)
         var pPartTypeI = new GMLObject();
         var particleType = g_ParticleTypes[emitter.parttype];
 
-        variable_struct_set(pPartTypeI, "ind", emitter.parttype);
+        variable_struct_set(pPartTypeI, "ind", MAKE_REF(REFID_PART_TYPE, emitter.parttype));
 
         if(particleType!==undefined)
         {
