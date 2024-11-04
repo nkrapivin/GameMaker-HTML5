@@ -406,7 +406,7 @@ audioSound.prototype.start = function(_buffer) {
         buffer: _buffer,
         loop: shouldLoop,
         loopStart: this.loopStart,
-        loopEnd: this.loopEnd,
+        loopEnd: trueLoopEnd,
         playbackRate: AudioPropsCalc.CalcPitch(this)
     };
 
