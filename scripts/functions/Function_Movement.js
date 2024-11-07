@@ -628,8 +628,8 @@ function move_and_collide(selfinst,dx,dy,ind,_iterations,xoff,yoff,_x_constraint
 			{
 				for (var j = 1; j <num_steps-i+1; j++)
 				{
-					tx = selfinst.x + root2over2 * ( j * ndy) * this_step_dist; 
-					ty = selfinst.y + root2over2 * ( - j * ndx) * this_step_dist; 
+					tx = selfinst.x + root2over2 * (ndx + j * ndy) * this_step_dist; 
+					ty = selfinst.y + root2over2 * (ndy - j * ndx) * this_step_dist; 
  
 					if (apply_x_constraints) 
 					{ 
@@ -655,8 +655,8 @@ function move_and_collide(selfinst,dx,dy,ind,_iterations,xoff,yoff,_x_constraint
 							ret[ret.length]= res;
 					}
 
-					tx = selfinst.x + root2over2 * ( - j * ndy) * this_step_dist; 
-					ty = selfinst.y + root2over2 * ( + j * ndx) * this_step_dist; 
+					tx = selfinst.x + root2over2 * (ndx - j * ndy) * this_step_dist; 
+					ty = selfinst.y + root2over2 * (ndy + j * ndx) * this_step_dist; 
  
 					if (apply_x_constraints) 
 					{ 
@@ -689,8 +689,8 @@ function move_and_collide(selfinst,dx,dy,ind,_iterations,xoff,yoff,_x_constraint
 				for (var j = 1; j < num_steps - i + 1; j++)
 				{
 
-					tx = selfinst.x + root2over2 * ( + j * lxoff) * this_step_dist; 
-					ty = selfinst.y + root2over2 * ( + j * lyoff) * this_step_dist; 
+					tx = selfinst.x + root2over2 * (ndx + j * lxoff) * this_step_dist; 
+					ty = selfinst.y + root2over2 * (ndy + j * lyoff) * this_step_dist; 
  
 					if (apply_x_constraints) 
 					{ 
