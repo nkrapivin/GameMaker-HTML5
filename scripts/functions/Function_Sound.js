@@ -3459,6 +3459,13 @@ function audio_create_play_queue(_format, _sampleRate, _channels)
         var scriptNode = newSound.scriptNode;
         var max_channels = outputBuffer.numberOfChannels;
 
+        if (scriptNode.sourceBuffers.length <= 0) {
+            const voice = audio_sounds.find(voice => voice.soundid === newSound.handle);
+            if (voice !== undefined) {
+                voice.stop();
+            }
+        }
+
         // put the data from the current buffer in there
         for (var sample = 0; sample < DYNAMIC_BUFFER_SIZE; sample++)
         {
