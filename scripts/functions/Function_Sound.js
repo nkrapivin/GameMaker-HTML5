@@ -3463,8 +3463,8 @@ function audio_create_play_queue(_format, _sampleRate, _channels)
             const voice = audio_sounds.find(voice => voice.soundid === newSound.handle);
             if (voice !== undefined) {
                 voice.stop();
-                return;
             }
+            return;
         }
 
         // put the data from the current buffer in there
