@@ -607,7 +607,7 @@ audioSound.prototype.isPlaying = function() {
     if (this.bQueued) {
         var queued_sound = queue_sounds[this.soundid - BASE_QUEUE_SOUND_INDEX];
 
-        if (!queued_sound || !queued_sound.scriptNode || !queued_sound.scriptNode.onended) 
+        if (!queued_sound || !queued_sound.scriptNode || !queued_sound.scriptNode.onended || queued_sound.scriptNode.sourceBuffers.length <= 0) 
             return false;
 
         return true;
