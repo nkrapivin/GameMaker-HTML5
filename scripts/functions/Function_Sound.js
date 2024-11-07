@@ -3447,7 +3447,7 @@ function audio_create_play_queue(_format, _sampleRate, _channels)
 
     newSound.scriptNode = g_WebAudioContext.createScriptProcessor(DYNAMIC_BUFFER_SIZE, 0, num_channels);
     newSound.scriptNode.sourceBuffers = [];
-    newSound.scriptNode.pendingSourceBufferCount = 0;
+    newSound.scriptNode.pendingBuffers = [];
     newSound.scriptNode.currentOffset = 0;
 
     newSound.scriptNode.onaudioprocess = function (audioProcessingEvent)
@@ -3585,21 +3585,33 @@ function audio_queue_sound(_queueId, _bufferId, _offset, _len)
 
         var pBuff = buffer_get_address(wavBuffer);
 
-        queueSound.scriptNode.pendingSourceBufferCount++;
+        queueSound.scriptNode.pendingBuffers.push({
+            id: _bufferId,
+            buffer: undefined
+        });
 
         try {
-            g_WebAudioContext.decodeAudioData(pBuff,
-                    function(buffer) {
-                        buffer_delete(wavBuffer);
-                        buffer.__old_buffer_id = _bufferId;
-                        queueSound.scriptNode.sourceBuffers.push(buffer);
-                        queueSound.scriptNode.pendingSourceBufferCount--;
-                    },
-                    function(err)
-                    {
-                        debug("error decoding audio data:" + err);
-                        buffer_delete(wavBuffer);
+            g_WebAudioContext.decodeAudioData(pBuff, 
+                buffer => {
+                    buffer_delete(wavBuffer);
+                    buffer.__old_buffer_id = _bufferId;
+
+                    const bundle = queueSound.scriptNode.pendingBuffers.find(elem => elem.id === _bufferId);
+                    bundle.buffer = buffer;
+
+                    while (queueSound.scriptNode.pendingBuffers.length > 0) {
+                        const front = queueSound.scriptNode.pendingBuffers[0];
+                        if (front === undefined || front.buffer === undefined) {
+                            break;
+                        }
+                        queueSound.scriptNode.sourceBuffers.push(front.buffer);
+                        queueSound.scriptNode.pendingBuffers.shift();
                     }
+                },
+                err => {
+                    debug("error decoding audio data:" + err);
+                    buffer_delete(wavBuffer);
+                }
             );
         } catch( ex ) {
             debug("audio_create_buffer_sound - error decoding audio data: " + ex + " -- " + ex.message );
