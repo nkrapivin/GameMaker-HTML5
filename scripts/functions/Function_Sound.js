@@ -503,6 +503,12 @@ audioSound.prototype.play = function() {
             const queue_id = this.soundid - BASE_QUEUE_SOUND_INDEX;
             const queueSound = queue_sounds[queue_id];
 
+            if (queueSound.scriptNode.sourceBuffers.length === 0) {
+                console.log("Error: Audio queue has no queued buffers");
+                this.bActive = false;
+                return;
+            }
+
             queueSound.gainnode = this.pgainnode;
 
             queueSound.scriptNode.connect(this.pgainnode);
