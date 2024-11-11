@@ -1421,7 +1421,10 @@ yySprite.prototype.DrawSimple = function (_sub_image, _x, _y, _alpha) {
 		if (!this.ppTPE) return;
         // Make sure we're not dealing with a texture that's been downsized to fit the tpage
         var pTPE = this.ppTPE[_sub_image];
-        if (!pTPE) return; // no loaded? texture group etc?
+        if (!pTPE) { // no loaded? texture group etc?
+			console.log("Error: Texture page for " + this.pName + " is not loaded");
+			return;
+		}
 		
 		// @if feature("nineslice")
         if ((this.nineslicedata != null) && (this.nineslicedata.enabled == true))
@@ -1506,8 +1509,14 @@ yySprite.prototype.Draw = function (_ind, _x, _y, _xscale, _yscale, _angle, _col
 		} else // ->
 		// @endif
 		{
-		    // undefined forces colour+alpha into ALL verts
-		    Graphics_TextureDraw(this.ppTPE[_ind], this.xOrigin, this.yOrigin, _x, _y, _xscale, _yscale, _angle * Math.PI / 180.0, _colour, undefined, undefined, undefined, _alpha);
+			const pTPE = this.ppTPE[_ind];
+			if (!pTPE) {
+				console.log("Error: Texture group for " + this.pName + " is not loaded");
+			}
+			else {
+				// undefined forces colour+alpha into ALL verts
+				Graphics_TextureDraw(pTPE, this.xOrigin, this.yOrigin, _x, _y, _xscale, _yscale, _angle * Math.PI / 180.0, _colour, undefined, undefined, undefined, _alpha);
+			}
 		}
 	}
 };
