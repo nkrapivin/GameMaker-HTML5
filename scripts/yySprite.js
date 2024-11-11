@@ -1514,8 +1514,8 @@ yySprite.prototype.Draw = function (_ind, _x, _y, _xscale, _yscale, _angle, _col
 				console.log("Error: Texture group for " + this.pName + " is not loaded");
 			}
 			else {
-		    	// undefined forces colour+alpha into ALL verts
-		    	Graphics_TextureDraw(pTPE, this.xOrigin, this.yOrigin, _x, _y, _xscale, _yscale, _angle * Math.PI / 180.0, _colour, undefined, undefined, undefined, _alpha);
+				// undefined forces colour+alpha into ALL verts
+				Graphics_TextureDraw(pTPE, this.xOrigin, this.yOrigin, _x, _y, _xscale, _yscale, _angle * Math.PI / 180.0, _colour, undefined, undefined, undefined, _alpha);
 			}
 		}
 	}

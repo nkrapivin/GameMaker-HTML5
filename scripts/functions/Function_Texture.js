@@ -126,7 +126,7 @@ function draw_sprite_pos(_pInst, _sprite, _sub_index, _x1, _y1, _x2,_y2, _x3,_y3
 		}
 		else {
 			_alpha = min(1.0, _alpha);
-        	pSpr.Sprite_DrawSimplePos(image_index, yyGetReal(_x1), yyGetReal(_y1), yyGetReal(_x2), yyGetReal(_y2), yyGetReal(_x3), yyGetReal(_y3), yyGetReal(_x4), yyGetReal(_y4), _alpha);
+			pSpr.Sprite_DrawSimplePos(image_index, yyGetReal(_x1), yyGetReal(_y1), yyGetReal(_x2), yyGetReal(_y2), yyGetReal(_x3), yyGetReal(_y3), yyGetReal(_x4), yyGetReal(_y4), _alpha);
 		}
 	}
 }
@@ -318,8 +318,8 @@ function draw_sprite_part_ext(_pInst, _sprite, _sub_index, _left, _top, _width, 
 		}
 		else {
 			_color = ConvertGMColour(yyGetInt32(_color));
-        	Graphics_DrawPart(pTPE, yyGetReal(_left), yyGetReal(_top), yyGetReal(_width), yyGetReal(_height), yyGetReal(_x), yyGetReal(_y), yyGetReal(_xscale), yyGetReal(_yscale), _color, yyGetReal(_alpha));
-        	//Graphics_DrawGeneral(pSpr.ppTPE[_sub_index], _left, _top, _width, _height, _x, _y, _xscale, _yscale, 0, _color, _color, _color, _color, _alpha);
+			Graphics_DrawPart(pTPE, yyGetReal(_left), yyGetReal(_top), yyGetReal(_width), yyGetReal(_height), yyGetReal(_x), yyGetReal(_y), yyGetReal(_xscale), yyGetReal(_yscale), _color, yyGetReal(_alpha));
+			//Graphics_DrawGeneral(pSpr.ppTPE[_sub_index], _left, _top, _width, _height, _x, _y, _xscale, _yscale, 0, _color, _color, _color, _color, _alpha);
 		}
 	}
 }
@@ -406,7 +406,7 @@ function draw_sprite_tiled_ext(_pInst, _sprite,_sub_index,_x,_y,_xscale,_yscale,
 		}
 		else {
 			_color = ConvertGMColour(yyGetInt32(_color));
-        	Graphics_TextureDrawTiled(pTPE, yyGetReal(_x), yyGetReal(_y), yyGetReal(_xscale), yyGetReal(_yscale), true, true, _color, _alpha);
+			Graphics_TextureDrawTiled(pTPE, yyGetReal(_x), yyGetReal(_y), yyGetReal(_xscale), yyGetReal(_yscale), true, true, _color, _alpha);
 		}
     }
 }
