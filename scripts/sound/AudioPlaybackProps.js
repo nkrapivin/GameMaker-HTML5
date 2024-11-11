@@ -81,7 +81,7 @@ AudioPlaybackProps.prototype.invalid = function() {
     }
 
     if (!audio_group_is_loaded(this.asset.groupId)) {
-        debug(audio_get_name(this.asset_index) + ": Audio Group " + this.asset.groupId + " is not loaded");
+        debug("Error: Audio group for " + audio_get_name(this.asset_index) + " (" + this.asset.groupId + ") is not loaded");
         return true;
     }
 
