@@ -172,7 +172,9 @@ function draw_sprite_stretched(_pInst, _sprite, _sub_index, _x, _y, _w,_h)
 			if (!pTPE) {
 				console.log("Error: Texture page for " + pSpr.pName + " is not loaded");	
 			}
-	        Graphics_DrawStretchedExt(pSpr.ppTPE[image_index], yyGetReal(_x), yyGetReal(_y), yyGetReal(_w), yyGetReal(_h), 0xffffff, g_GlobalAlpha);
+			else {
+				Graphics_DrawStretchedExt(pTPE, yyGetReal(_x), yyGetReal(_y), yyGetReal(_w), yyGetReal(_h), 0xffffff, g_GlobalAlpha);
+			}
 	    }
 	}
 
@@ -316,7 +318,7 @@ function draw_sprite_part_ext(_pInst, _sprite, _sub_index, _left, _top, _width, 
 		}
 		else {
 			_color = ConvertGMColour(yyGetInt32(_color));
-        	Graphics_DrawPart(pSpr.ppTPE[image_index], yyGetReal(_left), yyGetReal(_top), yyGetReal(_width), yyGetReal(_height), yyGetReal(_x), yyGetReal(_y), yyGetReal(_xscale), yyGetReal(_yscale), _color, yyGetReal(_alpha));
+        	Graphics_DrawPart(pTPE, yyGetReal(_left), yyGetReal(_top), yyGetReal(_width), yyGetReal(_height), yyGetReal(_x), yyGetReal(_y), yyGetReal(_xscale), yyGetReal(_yscale), _color, yyGetReal(_alpha));
         	//Graphics_DrawGeneral(pSpr.ppTPE[_sub_index], _left, _top, _width, _height, _x, _y, _xscale, _yscale, 0, _color, _color, _color, _color, _alpha);
 		}
 	}
@@ -358,7 +360,7 @@ function draw_sprite_tiled(_pInst, _sprite, _sub_index, _x, _y) {
 			console.log("Error: Texture group for " + pSpr.pName + " is not loaded");
 		}
 		else {
-			Graphics_TextureDrawTiled( pSpr.ppTPE[image_index], yyGetReal(_x), yyGetReal(_y), 1,1, true, true, 0xffffff, g_GlobalAlpha);
+			Graphics_TextureDrawTiled(pTPE, yyGetReal(_x), yyGetReal(_y), 1,1, true, true, 0xffffff, g_GlobalAlpha);
 		}
     }
 }
@@ -404,7 +406,7 @@ function draw_sprite_tiled_ext(_pInst, _sprite,_sub_index,_x,_y,_xscale,_yscale,
 		}
 		else {
 			_color = ConvertGMColour(yyGetInt32(_color));
-        	Graphics_TextureDrawTiled( pSpr.ppTPE[image_index], yyGetReal(_x), yyGetReal(_y), yyGetReal(_xscale), yyGetReal(_yscale), true, true, _color, _alpha);
+        	Graphics_TextureDrawTiled(pTPE, yyGetReal(_x), yyGetReal(_y), yyGetReal(_xscale), yyGetReal(_yscale), true, true, _color, _alpha);
 		}
     }
 }
