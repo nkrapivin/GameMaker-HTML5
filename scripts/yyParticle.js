@@ -2818,6 +2818,39 @@ function HandleMotion( _ps, _em )
 	}
 }
 
+function ParticleGetImage(pParType)
+{
+	var spr = null;
+	var pTexture = null;
+
+	// @if feature("sprites")
+	spr = g_pSpriteManager.Get(pParType.sprite);
+	// @endif sprites
+
+	if (spr == null)
+	{
+		var shape = pParType.shape;
+		if ((shape >= 0) && (shape < g_ParticleTextures.length))
+		{
+			pTexture = g_ParticleTextures[shape];		// get pTPE
+			if (pTexture == null)
+			{
+				// They have probably switched off default particles, yet are trying to draw with them...
+				return null;
+			}
+		}
+		else
+		{
+			return null; // illegal shape.
+		}
+	}
+	else if (spr.num <= 0)
+	{
+		spr = null;
+	}
+
+	return { spr: spr, pTexture: pTexture };
+}
 
 // #############################################################################################
 /// Function:<summary>
@@ -2869,6 +2902,32 @@ function  HandleShape(_ps, _em)
 				pParticle.alpha = pParType.alphastart*(1.0-passed) + pParType.alphamiddle*passed;
 			}else{
 				pParticle.alpha = pParType.alphamiddle*(2.0-passed) + pParType.alphaend*(passed-1);
+			}
+
+			// handle animation
+			var imageData = ParticleGetImage(pParType);
+			if (imageData != null && imageData.spr != null)
+			{
+				var spr = imageData.spr;
+				if (!pParType.spriteanim)
+				{
+					pParticle.subimg = pParticle.spritestart;
+				}
+				else if (pParType.spritestretch)
+				{
+					var duration = (spr.m_skeletonSprite)
+						? spr.m_skeletonSprite.m_skeletonData.animations[0].duration
+						: spr.numb;
+					pParticle.subimg = pParticle.spritestart + duration * pParticle.age/pParticle.lifetime;
+				}
+				else
+				{
+					var fps = (spr.m_skeletonSprite) ? g_GameTimer.GetFPS() : 1.0;
+					if (fps > 0.0)
+					{
+						pParticle.subimg += 1.0 / fps;
+					}
+				}
 			}
 		}
 	}
@@ -2993,9 +3052,6 @@ function	DrawParticle(_pPartSys, _pParticle, _xoff, _yoff, _color, _alpha)
 	
 	var psColor = _pPartSys.color;
 	var psAlpha = _pPartSys.alpha;
-	
-	var spr= null;
-	var pTexture=null;
 
 	if ( _pParticle.lifetime <= 0 ) return;
 	var pParType = g_ParticleTypes[ _pParticle.parttype ];
@@ -3003,53 +3059,11 @@ function	DrawParticle(_pPartSys, _pParticle, _xoff, _yoff, _color, _alpha)
 	// Fix for null particle HTML5 crash - happens when particle type is destroyed but emitter is still alive
 	if (pParType === null) return;
 
-	// @if feature("sprites")
-	spr = g_pSpriteManager.Get( pParType.sprite );
-	// @endif sprites
-	if( spr == null )
-	{
-		var shape = pParType.shape;
-		if ( (shape >= 0) && (shape < g_ParticleTextures.length) )
-		{
-			pTexture = g_ParticleTextures[ shape ];		// get pTPE
-			if(pTexture==null)
-			{
-			    //They have probably switched off default particles, yet are trying to draw with them...
-			    return;
-			}
-		}
-		else{
-			return; // illegal shape.
-		}
-	}
+	var imageData = ParticleGetImage(pParType);
+	if (imageData == null) return;
 
-	// If a default particle, then no animation for it, just draw it.
-	if( pTexture!=null ){
-		
-
-	}else{
-		if ( spr.num <= 0 ) return;
-
-		if ( !pParType.spriteanim )
-		{
-			// _pParticle.subimg = _pParticle.spritestart;
-		}
-		else if ( pParType.spritestretch )
-		{
-			var duration = (spr.m_skeletonSprite)
-				? spr.m_skeletonSprite.m_skeletonData.animations[0].duration
-				: spr.numb;
-			_pParticle.subimg = _pParticle.spritestart + duration * _pParticle.age/_pParticle.lifetime;
-		}
-		else
-		{
-			var fps = (spr.m_skeletonSprite) ? g_GameTimer.GetFPS() : 1.0;
-			if (fps > 0.0)
-			{
-				_pParticle.subimg += 1.0 / fps;
-			}
-		}
-	}
+	var spr = imageData.spr;
+	var pTexture = imageData.pTexture;
 
 	// adapt to random angle
 	var r = ((_pParticle.age+2*_pParticle.ran) % 16)/4.0;
