@@ -5993,7 +5993,11 @@ yySequenceManager.prototype.HandleParticleTrackUpdate = function (_pEl, _pSeq, _
     // Update particle system (if any)
     if (keyframeCurrent)
     {
-        var particleSystem = _pInst.m_trackIDToPS[_pTrack.id];
+        g_SeqStack.push(keyframeCurrent);
+        var hashid = CHashMapCalculateHash(g_SeqStack);
+        g_SeqStack.pop();
+
+        var particleSystem = _pInst.m_trackIDToPS[hashid];
         var ps = (particleSystem !== undefined) ? particleSystem : -1;
 
         if (ps != -1)
