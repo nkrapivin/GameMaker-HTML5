@@ -5976,6 +5976,8 @@ yySequenceManager.prototype.HandleInstanceTrackUpdate = function (_pEl, _pSeq, _
 // #############################################################################################
 yySequenceManager.prototype.HandleParticleTrackUpdate = function (_pEl, _pSeq, _pInst, _srcVars, _matrix, _pTrack, _headPos, _lastHeadPos)
 {
+    _srcVars.particleSystemID = -1;
+
     var keyframes = _pTrack.m_keyframeStore;
     var keyframeCurrent = null;
 
@@ -6032,6 +6034,8 @@ yySequenceManager.prototype.HandleParticleTrackUpdate = function (_pEl, _pSeq, _
 
         if (ps != -1)
         {
+            _srcVars.particleSystemID = ps;
+
             ParticleSystem_SetMatrix(ps, _matrix);
 
             // Re-burst emitters when the sequence loops
@@ -6856,7 +6860,7 @@ function TrackEval() {
 
     this.spriteIndex = -1;
     this.instanceID = OBJECT_NOONE;
-    this.particleSystemIndex = -1; // particle tracks
+    this.particleSystemID = -1; // particle tracks
     this.emitterIndex = -1;
     this.soundIndex = -1;
     this.pSequence = null;
@@ -7386,6 +7390,21 @@ function TrackEvalNode(_parent)
                 else
                 {
                     return OBJECT_NOONE;
+                }
+            }
+        },
+
+        gmlparticleSystemID: {
+            enumerable: true,
+            get: function ()
+            {
+                if ((this.m_track != null) && (this.m_track.m_type == eSTT_Particle))
+                {
+                    return this.value.particleSystemID;
+                }
+                else
+                {
+                    return -1;
                 }
             }
         },
