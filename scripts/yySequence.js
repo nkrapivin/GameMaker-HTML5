@@ -7404,7 +7404,7 @@ function TrackEvalNode(_parent)
                 }
                 else
                 {
-                    return OBJECT_NOONE;
+                    return -1;
                 }
             }
         },
