@@ -5990,15 +5990,45 @@ yySequenceManager.prototype.HandleParticleTrackUpdate = function (_pEl, _pSeq, _
         }
     }
 
+    g_SeqStack.push(_pTrack);
+    var hashid = CHashMapCalculateHash(g_SeqStack);
+    g_SeqStack.pop();
+
+	var particleInfo = _pInst.trackParticles[hashid];
+
+	// Destroy particle system if key changed
+	if (particleInfo
+		&& particleInfo.particleSystemID != -1
+		&& particleInfo.pKeydata != keyframeCurrent)
+	{
+		ParticleSystem_Destroy(particleInfo.particleSystemID);
+		particleInfo.particleSystemID = -1;
+	}
+
     // Update particle system (if any)
     if (keyframeCurrent)
     {
-        g_SeqStack.push(keyframeCurrent);
-        var hashid = CHashMapCalculateHash(g_SeqStack);
-        g_SeqStack.pop();
+		var ps = -1;
 
-        var particleSystem = _pInst.m_trackIDToPS[hashid];
-        var ps = (particleSystem !== undefined) ? particleSystem : -1;
+		if (keyframeCurrent.particleSystemIndex != -1)
+		{
+			if (!particleInfo)
+			{
+				particleInfo = new CSeqTrackParticleInfo();
+				_pInst.trackParticles[hashid] = particleInfo;
+			}
+
+			if (particleInfo.particleSystemID == -1)
+			{
+				ps = CParticleSystem.Get(keyframeCurrent.particleSystemIndex).MakeInstance();
+				ParticleSystem_AutomaticDraw(ps, false);
+				ParticleSystem_AutomaticUpdate(ps, false);
+				particleInfo.particleSystemID = ps;
+			}
+
+			ps = particleInfo.particleSystemID;
+			particleInfo.pKeydata = keyframeCurrent;
+		}
 
         if (ps != -1)
         {
@@ -6143,9 +6173,7 @@ function CSequenceInstance(_id)
 
     this.trackAudio = {}; //CSeqTrackAudioInfo
     this.trackInstances = {}; //CSeqTrackInstanceInfo
-
-    this.m_trackIDToPS = {};
-    this.m_trackIDToLastKeyframe = {};
+    this.trackParticles = {}; //CSeqTrackParticleInfo
     
     this.cachedElementID = -1;
 
@@ -6724,16 +6752,15 @@ CSequenceInstance.prototype.CleanupAudioEmitters = function ()
 CSequenceInstance.prototype.CleanupParticles = function ()
 {
     // Destroy particle systems created by the layer
-    for (var k in this.m_trackIDToPS)
+    for (var k in this.trackParticles)
     {
-        var ps = this.m_trackIDToPS[k];
+        var ps = this.trackParticles[k].particleSystemID;
         if (ps != -1)
         {
             ParticleSystem_Destroy(ps);
         }
     }
-    this.m_trackIDToPS = {};
-    this.m_trackIDToLastKeyframe = {};
+    this.trackParticles = {};
 };
 
 CSequenceInstance.prototype.SetInstanceInSequenceStatus = function (_inSequence)
@@ -8278,6 +8305,18 @@ function CSeqTrackInstanceInfo()
 	this.instanceID = -1;
 	this.ownedBySequence = false;
 	//bool beenCreated;
+};
+
+// #############################################################################################
+/// Function:<summary>
+///             Create a new CSeqTrackParticleInfo object
+///          </summary>
+// #############################################################################################
+/** @constructor */
+function CSeqTrackParticleInfo()
+{
+	this.pKeydata = null;
+	this.particleSystemID = -1;
 };
 
 // #############################################################################################
