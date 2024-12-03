@@ -578,8 +578,10 @@ function surface_set_target_RELEASE(_id, _depth_id)
 
     if (g_webGL) {
         g_CurrentFrameBuffer = pSurf.FrameBuffer;
+        var hasDepthTexture = (pSurfDepth.textureDepth != null
+            && pSurfDepth.textureDepth.webgl_textureid instanceof yyGLTexture);
         g_CurrentDepthBuffer = g_SupportDepthTexture
-            ? pSurfDepth.textureDepth.webgl_textureid.Texture
+            ? (hasDepthTexture ? pSurfDepth.textureDepth.webgl_textureid.Texture : null)
             : pSurfDepth.FrameBufferData.RenderBuffer;
         g_webGL.SetRenderTarget(g_CurrentFrameBuffer, g_CurrentDepthBuffer);
         g_RenderTargetActive = -1;
