@@ -148,6 +148,7 @@ function GMLObject()
     // do nothing just now
     this.__type = "Object";
     this.__yyIsGMLObject = true;
+
 } // end GMLObject
 
 GMLObject.prototype.toString = function () {
@@ -156,7 +157,14 @@ GMLObject.prototype.toString = function () {
 
 GMLObject.prototype.SetImageIndexGML = function(_frame) 
 { 
-    this.image_index = _frame; 
+    this.gmlimage_index = _frame; 
+
+    function getImageIndex() { return this.gmlimage_index; }
+    function setImageIndex(f) { this.gmlimage_index = f; }
+    
+    Object.defineProperties( this, {
+        image_index : { get : getImageIndex, set : setImageIndex, enumerable : true, configurable : false}
+    });
 };
 
 
