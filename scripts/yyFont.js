@@ -2000,7 +2000,10 @@ yyFontManager.prototype.Split_TextBlock_IDEstyle = function (_pStr, _boundsWidth
 		{
 			textLines[textLines.length] = pNew.substring(start, char);
 
-			while((pNew[char] == newline) || (pNew[char] == newline2))
+			var thechar = pNew[char];
+			char++;
+
+			if (((pNew[char] == newline) || (pNew[char] == newline2)) && (pNew[char] != thechar))			
 			{
 				char++;
 			}
