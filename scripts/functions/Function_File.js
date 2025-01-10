@@ -1302,7 +1302,7 @@ function _json_replacer(_selfinst, key, value)
 	// call the user method
 	if ((g_JSON_gml_infunc != undefined) && is_callable(g_JSON_gml_infunc)) {
 	    var _func = getFunction(g_JSON_gml_infunc, 1);
-	    _obj = _func.boundObject : _selfinst;
+	    const _obj = "boundObject" in _func ? _func.boundObject : _selfinst;
 		value = _func(_obj, _obj, key, value);
 	} // end if
 
