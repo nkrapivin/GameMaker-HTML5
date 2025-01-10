@@ -2849,7 +2849,13 @@ function ParticleGetImage(pParType)
 		spr = null;
 	}
 
-	return { spr: spr, pTexture: pTexture };
+	var ret ={ 
+		spr: spr, 
+		pTexture: pTexture 
+	};
+
+
+	return ret;
 }
 
 // #############################################################################################
