@@ -422,7 +422,7 @@ function method_get_index( _method )
         var globalScriptIndex = g_globalScripts.indexOf(_method);
         if(globalScriptIndex != -1)
         {
-            return globalScriptIndex + 100000;
+            return globalScriptIndex;
         }
     } // end if
     return undefined;
