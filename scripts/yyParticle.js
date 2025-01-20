@@ -311,6 +311,14 @@ CParticleSystem.Create = function ()
 };
 
 /// <summary>
+/// Inserts NULL into list of particle systems. This is used to reserve a spot for an unused particle system asset.
+/// </summary>
+CParticleSystem.CreateNull = function ()
+{
+	CParticleSystem.instances.push(null);
+};
+
+/// <summary>
 /// Creates a new particle system, loading its data from JSON.
 /// </summary>
 /// <param name="json">A particle system entry from the JSON.</param>
@@ -1403,11 +1411,15 @@ var g_presetIndexNext = PART_SPRITE_NUMB;
 function ParticleSystem_Emitters_Load(_GameFile)
 {
 	var _json = _GameFile.PSEmitters;
+	
+	g_PSEmitters = new Array(_json.length).fill(null);
 
 	for (var i = 0; i < _json.length; ++i)
 	{
-		var yypt = _json[i];
 		var yypse = _json[i];
+		if (yypse == undefined) continue;
+		
+		var yypt = _json[i];
 
 		////////////////////////////////////////////////////////////////////////
 		// Particle type

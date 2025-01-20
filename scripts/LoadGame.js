@@ -925,7 +925,12 @@ function LoadGame(_GameFile)
 	// Load Particle Systems
     if (_GameFile.ParticleSystems !== undefined) {
         for (index = 0; index < _GameFile.ParticleSystems.length; index++) {
-			CParticleSystem.CreateFromJSON(_GameFile.ParticleSystems[index]);
+            var particleSystem = _GameFile.ParticleSystems[index];
+            if (particleSystem != undefined) {
+                CParticleSystem.CreateFromJSON(particleSystem);
+            } else {
+                CParticleSystem.CreateNull();
+            }
         }
     }
 	// @endif
