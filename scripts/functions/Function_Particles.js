@@ -99,7 +99,7 @@ function ParticleSystemGetInfoImpl(_ind, _isInstance)
             variable_struct_set(pPSI, "oldtonew", pPS.oldtonew ? true : false);
             variable_struct_set(pPSI, "global_space", pPS.globalSpaceParticles);
 
-            for (var i = pPS.emitters.length - 1; i >= 0; --i)
+            for (var i = 0; i < pPS.emitters.length; ++i)
             {
                 var emitter = pPS.emitters[i];
                 if (emitter)
@@ -124,7 +124,7 @@ function ParticleSystemGetInfoImpl(_ind, _isInstance)
             variable_struct_set(pPSI, "oldtonew", (pPS.drawOrder == 0));
             variable_struct_set(pPSI, "global_space", pPS.globalSpaceParticles);
 
-            for (var i = 0; i < pPS.emitters.length; ++i)
+            for (var i = pPS.emitters.length - 1; i >= 0; --i)
             {
                 var emitter = g_PSEmitters[pPS.emitters[i]];
                 if (emitter)
