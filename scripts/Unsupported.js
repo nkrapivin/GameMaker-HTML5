@@ -166,6 +166,8 @@ function zip_save()                                 { ErrorFunction("zip_save()"
 
 function game_change()                              { ErrorFunction("game_change()"); }
 
+function mac_refresh_receipt_validation()			{ ErrorFunction("mac_refresh_receipt_validation()");}
+
 function winphone_license_trial_version()           { ErrorFunction("winphone_license_trial_version()"); }
 function winphone_tile_title()                      { ErrorFunction("winphone_tile_title()"); }
 function winphone_tile_count()                      { ErrorFunction("winphone_tile_count()"); }
