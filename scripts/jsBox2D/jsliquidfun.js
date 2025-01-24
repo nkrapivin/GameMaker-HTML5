@@ -11430,7 +11430,10 @@ b2ParticleSystem.prototype =
 		{
 			flags |= b2ParticleDef.b2_destructionListener;
 		}
-		this.m_flagsBuffer.data[index] |= flags;
+		b2Assert(index>=0 && index<this.m_count);
+
+		if(index>=0 && index<this.m_count)
+			this.m_flagsBuffer.data[index] |= flags;
 	},
 
 	DestroyParticlesInShape: function(shape, xf, callDestructionListener)
