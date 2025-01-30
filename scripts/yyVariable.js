@@ -891,7 +891,7 @@ function array_create_ext(_selfinst, _size, _func) {
     return ret;
 } // end array_create_ext
 
-function array_find_index(_array, _func, _offset, _length) {
+function array_find_index(_selfinst, _array, _func, _offset, _length) {
 
     // Check array argument
     if (!Array.isArray(_array)) yyError("array_find_index : argument0 is not an array");
