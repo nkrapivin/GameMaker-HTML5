@@ -1264,7 +1264,7 @@ function PerformColTest(_selfinst,_x,_y,_obj)
 					return id;
 			}
 		}
-		return -1;
+		return OBJECT_NOONE;
 	}
 	else
 	{
