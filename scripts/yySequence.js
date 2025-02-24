@@ -5742,7 +5742,7 @@ yySequenceManager.prototype.HandleAudioTrackUpdate = function (_pEl, _pSeq, _pIn
 
                         if (pAudioInfo.soundindex != -1 && audio_emitter_exists(pAudioInfo.emitterindex) === true)
                         {
-                            audio_emitter_gain(pAudioInfo.emitterindex, gain);
+                            audio_emitter_gain(pAudioInfo.emitterindex, gain, 0);
                             audio_emitter_pitch(pAudioInfo.emitterindex, pitch);
                             audio_emitter_falloff(pAudioInfo.emitterindex, falloffRef, falloffMax, falloffFac);
 
