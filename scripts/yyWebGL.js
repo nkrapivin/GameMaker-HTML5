@@ -1488,7 +1488,7 @@ function WebGL_DrawSWFDictionaryItem(SWFDictionaryItems, _pItem, _combinedMat, _
                     if ((pFillStyleData !== null) && (pFillStyleData !== undefined))
                     {
                         var filltype = pFillStyleData.type;
-                        if (filltype === eSWFFillType_Solid) 
+                        if ((filltype === eSWFFillType_Solid) || ((filltype === eSWFFillType_Gradient) && (pSubShape.numPointColours > 0)))
                         {
                             numtris += WebGL_Draw_SolidSWFShape(
                                 pFillStyleData, pSubShape, _combinedMat, _colvals, _transcolvals, _colmul, _coladd, _transcoladd, _useaa, _aascale);
@@ -2002,6 +2002,9 @@ function WebGL_Draw_BitmapGradientSWFShape(
     return numtris;
 }
 
+var g_SWFvertcolbuff = [];
+var g_SWFaavertcolbuff = [];
+
 // #############################################################################################
 /// Function:<summary>
 ///             Draw a solid SWF shape
@@ -2022,41 +2025,93 @@ function WebGL_Draw_SolidSWFShape(_pFillStyleData, _pSubShape, _combinedMat, _co
 	    col = pFillData.col,
 	    t = 0;
 
-	// Multiply our material colour and mul colour together using good old fashioned fixed point maths
-	// Note that this will make things very slightly darker and more transparent, as 1.0 is represented by 256, not 255
-	var blendcolvals = [];
-    var r = (col & 0xff),
-	    g = ((col >> 8) & 0xff),
-	    b = ((col >> 16) & 0xff),
-	    a = ((col >> 24) & 0xff);							        
-	blendcolvals[0] = (r * _colvals[0]) >> 8;
-	blendcolvals[1] = (g * _colvals[1]) >> 8;
-	blendcolvals[2] = (b * _colvals[2]) >> 8;								
-	blendcolvals[3] = (a * _colvals[3]) >> 8;
+    var numcols = 1;
+    var indexcolmask = 0;
+    var srccols = [];
 
-	// Apply colour transform (TODO: store and check flag to see if we actually need to do this)
-	for (t = 0; t < 4; t++)
-	{
-	    blendcolvals[t] = ((blendcolvals[t] * _colmul[t]) >> 8) + _coladd[t];
-	    blendcolvals[t] = yymax(0, yymin(blendcolvals[t], 255));
-	}
-	var blendcol = blendcolvals[0] | (blendcolvals[1] << 8) | (blendcolvals[2] << 16) | (blendcolvals[3] << 24);
-	
-	// Do AA trans blending
-	var transblendcolvals = [];
-	transblendcolvals[0] = ((col & 0xff) * _transcolvals[0]) >> 8;
-	transblendcolvals[1] = (((col >> 8) & 0xff) * _transcolvals[1]) >> 8;
-	transblendcolvals[2] = (((col >> 16) & 0xff) * _transcolvals[2]) >> 8;
-	transblendcolvals[3] = (((col >> 24) & 0xff) * _transcolvals[3]) >> 8;
+    if (pFillData.type === eSWFFillType_Solid)
+    {
+        srccols[0] = col;
+    }
+    else
+    {
+        numcols = _pSubShape.numPointColours;
+        srccols = _pSubShape.PointColours;
+        indexcolmask = 0xffffffff;
+    }
 
-	// Apply colour transform (TODO: store and check flag to see if we actually need to do this)
-	for (t = 0; t < 4; t++)
-	{
-		transblendcolvals[t] = ((transblendcolvals[t] * _colmul[t]) >> 8) + _transcoladd[t];
-		transblendcolvals[t] = yymax(0, yymin(transblendcolvals[t], 255));
-	}
-	var transblendcol = transblendcolvals[0] | (transblendcolvals[1] << 8) | (transblendcolvals[2] << 16) | (transblendcolvals[3] << 24);
-	
+    if (_aa && (_pSubShape.numAALines > 0))
+    {
+        for(var colcount = 0; colcount < numcols; colcount++)
+        {
+            var srccol = srccols[colcount];
+
+            // Multiply our material colour and mul colour together using good old fashioned fixed point maths
+            // Note that this will make things very slightly darker and more transparent, as 1.0 is represented by 256, not 255
+            var blendcolvals = [];
+            var r = (srccol & 0xff),
+                g = ((srccol >> 8) & 0xff),
+                b = ((srccol >> 16) & 0xff),
+                a = ((srccol >> 24) & 0xff);							        
+            blendcolvals[0] = (r * _colvals[0]) >> 8;
+            blendcolvals[1] = (g * _colvals[1]) >> 8;
+            blendcolvals[2] = (b * _colvals[2]) >> 8;								
+            blendcolvals[3] = (a * _colvals[3]) >> 8;
+
+            // Apply colour transform (TODO: store and check flag to see if we actually need to do this)
+            for (t = 0; t < 4; t++)
+            {
+                blendcolvals[t] = ((blendcolvals[t] * _colmul[t]) >> 8) + _coladd[t];
+                blendcolvals[t] = yymax(0, yymin(blendcolvals[t], 255));
+            }
+            var blendcol = blendcolvals[0] | (blendcolvals[1] << 8) | (blendcolvals[2] << 16) | (blendcolvals[3] << 24);
+            g_SWFvertcolbuff[colcount] = blendcol;
+            
+            // Do AA trans blending
+            var transblendcolvals = [];
+            transblendcolvals[0] = (r * _transcolvals[0]) >> 8;
+            transblendcolvals[1] = (g * _transcolvals[1]) >> 8;
+            transblendcolvals[2] = (b * _transcolvals[2]) >> 8;
+            transblendcolvals[3] = (a * _transcolvals[3]) >> 8;
+
+            // Apply colour transform (TODO: store and check flag to see if we actually need to do this)
+            for (t = 0; t < 4; t++)
+            {
+                transblendcolvals[t] = ((transblendcolvals[t] * _colmul[t]) >> 8) + _transcoladd[t];
+                transblendcolvals[t] = yymax(0, yymin(transblendcolvals[t], 255));
+            }
+            var transblendcol = transblendcolvals[0] | (transblendcolvals[1] << 8) | (transblendcolvals[2] << 16) | (transblendcolvals[3] << 24);
+            g_SWFaavertcolbuff[colcount] = transblendcol;
+        }
+    }
+    else
+    {
+        for(var colcount = 0; colcount < numcols; colcount++)
+        {
+            var srccol = srccols[colcount];
+
+            // Multiply our material colour and mul colour together using good old fashioned fixed point maths
+            // Note that this will make things very slightly darker and more transparent, as 1.0 is represented by 256, not 255
+            var blendcolvals = [];
+            var r = (srccol & 0xff),
+                g = ((srccol >> 8) & 0xff),
+                b = ((srccol >> 16) & 0xff),
+                a = ((srccol >> 24) & 0xff);							        
+            blendcolvals[0] = (r * _colvals[0]) >> 8;
+            blendcolvals[1] = (g * _colvals[1]) >> 8;
+            blendcolvals[2] = (b * _colvals[2]) >> 8;								
+            blendcolvals[3] = (a * _colvals[3]) >> 8;
+
+            // Apply colour transform (TODO: store and check flag to see if we actually need to do this)
+            for (t = 0; t < 4; t++)
+            {
+                blendcolvals[t] = ((blendcolvals[t] * _colmul[t]) >> 8) + _coladd[t];
+                blendcolvals[t] = yymax(0, yymin(blendcolvals[t], 255));
+            }
+            var blendcol = blendcolvals[0] | (blendcolvals[1] << 8) | (blendcolvals[2] << 16) | (blendcolvals[3] << 24);
+            g_SWFvertcolbuff[colcount] = blendcol;                
+        }
+    }
 	
 	// Currently just do manual transformation
 	if (useTextureWithSolidFill) {
@@ -2119,41 +2174,48 @@ function WebGL_Draw_SolidSWFShape(_pFillStyleData, _pSubShape, _combinedMat, _co
 			    y3 = (srcX3 * _combinedMat.m[_12]) + (srcY3 * _combinedMat.m[_22]) + y1,
 			    x4 = (srcX4 * _combinedMat.m[_11]) + (srcY4 * _combinedMat.m[_21]) + x2,
 			    y4 = (srcX4 * _combinedMat.m[_12]) + (srcY4 * _combinedMat.m[_22]) + y2;
+
+            var maskedindex1 = index1 & indexcolmask;
+            var maskedindex2 = index2 & indexcolmask;
+            var blendcol1 = g_SWFvertcolbuff[maskedindex1];
+            var blendcol2 = g_SWFvertcolbuff[maskedindex2];
+            var transblendcol1 = g_SWFaavertcolbuff[maskedindex1];
+            var transblendcol2 = g_SWFaavertcolbuff[maskedindex2];
 											
 		    pCoords[currVert + 0] = x1;
 	        pCoords[currVert + 1] = y1;
 	        pCoords[currVert + 2] = GR_Depth;
-	        pColours[currVert] = blendcol;		
+	        pColours[currVert] = blendcol1;		
 	        currVert += stride;
 	        
 	        pCoords[currVert + 0] = x2;
 	        pCoords[currVert + 1] = y2;
 	        pCoords[currVert + 2] = GR_Depth;
-	        pColours[currVert] = blendcol;		
+	        pColours[currVert] = blendcol2;		
 	        currVert += stride;
 	        
 	        pCoords[currVert + 0] = x3;
 	        pCoords[currVert + 1] = y3;
 	        pCoords[currVert + 2] = GR_Depth;
-	        pColours[currVert] = transblendcol;
+	        pColours[currVert] = transblendcol1;
 	        currVert += stride;
 	        
 	        pCoords[currVert + 0] = x3;
 	        pCoords[currVert + 1] = y3;
 	        pCoords[currVert + 2] = GR_Depth;
-	        pColours[currVert] = transblendcol;
+	        pColours[currVert] = transblendcol1;
 	        currVert += stride;
 	        
 	        pCoords[currVert + 0] = x2;
 	        pCoords[currVert + 1] = y2;
 	        pCoords[currVert + 2] = GR_Depth;
-	        pColours[currVert] = blendcol;
+	        pColours[currVert] = blendcol2;
 	        currVert += stride;
 	        
 	        pCoords[currVert + 0] = x4;
 	        pCoords[currVert + 1] = y4;
 	        pCoords[currVert + 2] = GR_Depth;
-	        pColours[currVert] = transblendcol;
+	        pColours[currVert] = transblendcol2;
 	        currVert += stride;
 	    }
     }    
@@ -2179,6 +2241,9 @@ function WebGL_Draw_SolidSWFShape(_pFillStyleData, _pSubShape, _combinedMat, _co
 
 	    var x = (srcX * _combinedMat.m[_11]) + (srcY * _combinedMat.m[_21]) + _combinedMat.m[_41];
 	    var y = (srcX * _combinedMat.m[_12]) + (srcY * _combinedMat.m[_22]) + _combinedMat.m[_42];
+
+        var maskedindex = index & indexcolmask;										
+        var blendcol = g_SWFvertcolbuff[maskedindex];
 
 	    pCoords[currVert + 0] = x;
 	    pCoords[currVert + 1] = y;
