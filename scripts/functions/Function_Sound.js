@@ -108,6 +108,7 @@ function audio_update()
         return;
 
     // Update and apply gains
+    audio_emitters.forEach(_emitter => _emitter.updateGain());
     g_AudioGroups.forEach(_group => _group.gain.update());
     audio_sampledata.forEach(_asset => {
         if (_asset != null) {
@@ -1557,7 +1558,7 @@ function audio_sound_get_gain(_index)
     return 0;
 }
 
-function audio_sound_gain(_index, _gain, _timeMs)
+function audio_sound_gain(_index, _gain, _timeMs = 0)
 {
     _index = yyGetInt32(_index);
 
@@ -2398,17 +2399,17 @@ function audio_get_master_gain( _listenerId )
 }
 
 /* Sets the gain of an emitter. Also updates any voices playing on the emitter. */
-function audio_emitter_gain(_emitterIndex, _gain) {
+function audio_emitter_gain(_emitterIndex, _gain, _timeMs = 0) {
     const emitter = Audio_GetEmitterOrThrow(_emitterIndex);
 
     if (emitter === undefined)
         return;
 
     _gain = yyGetReal(_gain);
-    _gain = Math.max(0.0, _gain);
+    _timeMs = yyGetInt32(_timeMs);
 
     /* Voice gain is updated in audio_update() */
-    emitter.gainnode.gain.value = _gain;
+    emitter.setGain(_gain, _timeMs);
 }
 
 /* Retrieves the gain of an emitter. */
@@ -2418,7 +2419,7 @@ function audio_emitter_get_gain(_emitterIndex) {
     if (emitter === undefined)
         return 0.0;
 
-    return emitter.gainnode.gain.value;
+    return emitter.getGain();
 }
 
 /* Sets the pitch of an emitter. Also updates any voices playing on the emitter. */
@@ -3097,7 +3098,7 @@ function audio_group_stop_all( _groupId )
     audio_group_stop_sounds( yyGetInt32(_groupId) );
 }
 
-function audio_group_set_gain(_groupId, _gain, _timeMs)
+function audio_group_set_gain(_groupId, _gain, _timeMs = 0)
 {
     _groupId = yyGetInt32(_groupId);
     _gain = yyGetReal(_gain);
