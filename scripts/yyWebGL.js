@@ -302,6 +302,7 @@ function InitWebGL(_canvas) {
     g_RenderTargetActive = 1;
     g_pProjection = new Matrix();
     g_pView = new Matrix();
+    g_scissorRect = { x : 0, y : 0, w : 0, h : 0 };
     
     var stages = g_webGL.GetMaxTextureStages();
     for (var i = 0; i < stages; i++) {
