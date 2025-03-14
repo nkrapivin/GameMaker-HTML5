@@ -20,6 +20,9 @@ YYLayerType_Tile=4,
 YYLayerType_Particle=5,
 YYLayerType_Effect=6;
 
+var eLAYER_NORMAL = 1;
+var eLAYER_GUI_IN_VIEW = 2;
+var eLAYER_GUI_IN_GUI = 4;
 
 var	eLayerElementType_Undefined = 0,
 	eLayerElementType_Background=1,
@@ -93,6 +96,7 @@ this.m_effectToBeEnabled = true;
 this.m_effect = null; // yyEffectInstanceRef
 this.m_pInitialEffectInfo = null;
 this.m_effectPS = -1;
+this.m_gui_layer = eLAYER_NORMAL;
 };
 
 CLayer.prototype.SetEffect = function(_effect)
@@ -1203,16 +1207,20 @@ LayerManager.prototype.RemoveStorageInstanceFromLayer = function (_room, _layer,
     }
 };
 
-LayerManager.prototype.AddLayer = function(_room, _depth, _name)
+LayerManager.prototype.AddLayer = function(_room, _depth, _name, _type)
 {
     if (_room == null)
         return null;
+
+    if (_type === undefined)
+        _type = eLAYER_NORMAL;
 
     var NewLayer = new CLayer();
     NewLayer.m_id = this.GetNextLayerID();
     NewLayer.depth = _depth;
     NewLayer.m_pName = _name;
-    NewLayer.m_dynamic = false;    
+    NewLayer.m_dynamic = false;
+    NewLayer.m_gui_layer = _type;
 
     _room.m_Layers.Add(NewLayer);
 

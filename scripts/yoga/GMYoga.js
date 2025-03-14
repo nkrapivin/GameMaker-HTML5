@@ -1,7 +1,7 @@
 // @if feature("flexpanel")
 const Yoga = require('/yoga-wasm-base64-csm.js');
 var g_yoga = null;
-
+var g_UILayers = null;
 
 async function flexpanel_init()
 {
@@ -180,6 +180,9 @@ function FLEXPANEL_CreateContext(_node)
 function FLEXPANEL_Init_From_Struct(_node, _struct)
 {
 	var context = FLEXPANEL_GetContext(_node);
+
+	var layerElements = undefined;
+
 	for( var key in _struct) {
 		if (!_struct.hasOwnProperty(key)) continue;
 
@@ -400,13 +403,47 @@ function FLEXPANEL_Init_From_Struct(_node, _struct)
 		case "data":
 			FLEXPANEL_GetContext(_node).data = value;
 			break;
+		case "layerElements":
+			layerElements = value;
+			break;
 		case "__yyIsGMLObject":
 		case "__type": break;
 		default:
 			//console.log( "flexpanel_create_node : unknown struct key " + key );
 			break;
 		}
+	}
 
+	if(layerElements !== undefined)
+	{
+		context.elements = [];
+
+		for(var i = 0; i < layerElements.length; ++i)
+		{
+			var element_data = layerElements[i];
+
+			if(element_data === undefined)
+			{
+				continue;
+			}
+
+			if(element_data.type === "Instance")
+			{
+				context.elements.push(new UILayerInstanceElement(element_data, true));
+			}
+			else if(element_data.type === "Sequence")
+			{
+				context.elements.push(new UILayerSequenceElement(element_data, true));
+			}
+			else if(element_data.type === "Sprite")
+			{
+				context.elements.push(new UILayerSpriteElement(element_data, true));
+			}
+			else if(element_data.type === "Text")
+			{
+				context.elements.push(new UILayerTextElement(element_data, true));
+			}
+		}
 	}
 }
 
@@ -1096,3 +1133,139 @@ function flexpanel_node_style_set_height(_node, _value, _unit)
 	} // end switch
 }
 // @endif
+
+function UILayers_Create()
+{
+	if(g_UILayers !== null)
+	{
+		return;
+	}
+
+	g_UILayers = [];
+
+	for(var i = 0; i < g_pGMFile.GMUILayers.length; ++i)
+	{
+		var layer_data = g_pGMFile.GMUILayers[i];
+
+		var layer_type;
+		if(layer_data.drawSpace === "GUI")
+		{
+			layer_type = eLAYER_GUI_IN_GUI;
+		}
+		else if(layer_data.drawSpace === "VIEW")
+		{
+			layer_type = eLAYER_GUI_IN_VIEW;
+		}
+
+		var node = flexpanel_create_node(layer_data);
+		var layer = g_pLayerManager.AddLayer(g_RunRoom, i, flexpanel_node_get_name(node), layer_type);
+
+		g_UILayers.push({
+			node: node,
+			layer: layer,
+		});
+	}
+}
+
+function UILayerInstanceElement(element_data, from_wad)
+{
+	this.elementOrder        = element_data.elementOrder;
+	this.instanceObjectIndex = element_data.instanceObjectIndex;
+	this.instanceVariables   = element_data.instanceVariables;
+	this.instanceOffsetX     = element_data.instanceOffsetX;
+	this.instanceOffsetY     = element_data.instanceOffsetY;
+	this.instanceScaleX      = element_data.instanceScaleX;
+	this.instanceScaleY      = element_data.instanceScaleY;
+	this.instanceImageSpeed  = element_data.instanceImageSpeed;
+	this.instanceImageIndex  = element_data.instanceImageIndex;
+	this.instanceColour      = element_data.instanceColour;
+	this.instanceAngle       = element_data.instanceAngle;
+	this.instanceId          = from_wad ? element_data.instanceId : undefined;
+
+	this.flexVisible    = element_data.flexVisible;
+	this.flexAnchor     = element_data.flexAnchor;
+	this.stretchWidth   = element_data.stretchWidth;
+	this.stretchHeight  = element_data.stretchHeight;
+	this.keepAspect     = element_data.keepAspect;
+
+	this.m_element_id = undefined;
+}
+
+function UILayerSequenceElement(element_data, from_wad)
+{
+	this.elementOrder         = element_data.elementOrder;
+	this.sequenceIndex        = element_data.sequenceIndex;
+	this.sequenceOffsetX      = element_data.sequenceOffsetX;
+	this.sequenceOffsetY      = element_data.sequenceOffsetY;
+	this.sequenceScaleX       = element_data.sequenceScaleX;
+	this.sequenceScaleY       = element_data.sequenceScaleY;
+	this.sequenceColour       = element_data.sequenceColour;
+	this.sequenceImageSpeed   = element_data.sequenceImageSpeed;
+	this.sequenceSpeedType    = element_data.sequenceSpeedType;
+	this.sequenceHeadPosition = element_data.sequenceHeadPosition;
+	this.sequenceAngle        = element_data.sequenceAngle;
+
+	this.flexVisible    = element_data.flexVisible;
+	this.flexAnchor     = element_data.flexAnchor;
+	this.stretchWidth   = element_data.stretchWidth;
+	this.stretchHeight  = element_data.stretchHeight;
+	this.tileHorizontal = element_data.tileHorizontal;
+	this.tileVertical   = element_data.tileVertical;
+	this.keepAspect     = element_data.keepAspect;
+
+	this.m_element_id = undefined;
+}
+
+function UILayerSpriteElement(element_data, from_wad)
+{
+	this.elementOrder     = element_data.elementOrder;
+	this.spriteIndex      = element_data.spriteIndex;
+	this.spriteOffsetX    = element_data.spriteOffsetX;
+	this.spriteOffsetY    = element_data.spriteOffsetY;
+	this.spriteScaleX     = element_data.spriteScaleX;
+	this.spriteScaleY     = element_data.spriteScaleY;
+	this.spriteColour     = element_data.spriteColour;
+	this.spriteImageSpeed = element_data.spriteImageSpeed;
+	this.spriteSpeedType  = element_data.spriteSpeedType;
+	this.spriteImageIndex = element_data.spriteImageIndex;
+	this.spriteAngle      = element_data.spriteAngle;
+
+	this.flexVisible    = element_data.flexVisible;
+	this.flexAnchor     = element_data.flexAnchor;
+	this.stretchWidth   = element_data.stretchWidth;
+	this.stretchHeight  = element_data.stretchHeight;
+	this.tileHorizontal = element_data.tileHorizontal;
+	this.tileVertical   = element_data.tileVertical;
+	this.keepAspect     = element_data.keepAspect;
+
+	this.m_element_id = undefined;
+}
+
+function UILayerTextElement(element_data, from_wad)
+{
+	this.elementOrder         = element_data.elementOrder;
+	this.textFontIndex        = element_data.textFontIndex;
+	this.textOffsetX          = element_data.textOffsetX;
+	this.textOffsetY          = element_data.textOffsetY;
+	this.textScaleX           = element_data.textScaleX;
+	this.textScaleY           = element_data.textScaleY;
+	this.textAngle            = element_data.textAngle;
+	this.textColour           = element_data.textColour;
+	this.textOriginX          = element_data.textOriginX;
+	this.textOriginY          = element_data.textOriginY;
+	this.textText             = element_data.textText;
+	this.textAlignment        = element_data.textAlignment;
+	this.textCharacterSpacing = element_data.textCharacterSpacing;
+	this.textLineSpacing      = element_data.textLineSpacing;
+	this.textFrameWidth       = element_data.textFrameWidth;
+	this.textFrameHeight      = element_data.textFrameHeight;
+	this.textWrap             = element_data.textWrap;
+
+	this.flexVisible    = element_data.flexVisible;
+	this.flexAnchor     = element_data.flexAnchor;
+	this.stretchWidth   = element_data.stretchWidth;
+	this.stretchHeight  = element_data.stretchHeight;
+	this.keepAspect     = element_data.keepAspect;
+
+	this.m_element_id = undefined;
+}

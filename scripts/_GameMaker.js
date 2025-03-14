@@ -1327,6 +1327,8 @@ function StartRoom( _numb, _starting )
 	g_pBuiltIn.room = g_RunRoom.id;	
 	SetCanvasSize();
 
+	UILayers_Create();
+
     //initialise view scaledport properties- mouse_x/y will return NaN until first draw otherwise
 	var sx = g_AppSurfaceRect.w / (g_roomExtents.right - g_roomExtents.left);
 	var sy = g_AppSurfaceRect.h / (g_roomExtents.bottom - g_roomExtents.top);
