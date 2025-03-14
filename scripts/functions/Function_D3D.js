@@ -2027,10 +2027,10 @@ function WebGL_gpu_get_scissor()
     var ret = {};
     ret.__yyIsGMLObject = true; 
 
-    variable_struct_set(ret, "x", g_webGL.m_CommandBuilder.m_scissor.x );
-    variable_struct_set(ret, "y", g_webGL.m_CommandBuilder.m_scissor.y );
-    variable_struct_set(ret, "w", g_webGL.m_CommandBuilder.m_scissor.w );
-    variable_struct_set(ret, "h", g_webGL.m_CommandBuilder.m_scissor.h );
+    variable_struct_set(ret, "x", g_scissorRect.x );
+    variable_struct_set(ret, "y", g_scissorRect.y );
+    variable_struct_set(ret, "w", g_scissorRect.w );
+    variable_struct_set(ret, "h", g_scissorRect.h );
 
     return ret;
 }
