@@ -3236,7 +3236,7 @@ yyRoom.prototype.HandleSequenceText = function (_rect, _layer, _pSequenceEl, _no
 
 
 
-yyRoom.prototype.DrawRoomLayers = function(_rect){
+yyRoom.prototype.DrawRoomLayers = function(_rect, _gui_mask){
 
     var oldtype = Current_Event_Type;
     var oldnumb = Current_Event_Number;
@@ -3249,7 +3249,7 @@ yyRoom.prototype.DrawRoomLayers = function(_rect){
 	    for (i = pool.length - 1; i >= 0; i--)
 	    {
 	        player =pool[i];
-	        if(player===null || player.m_visible<=0)
+	        if(player===null || player.m_visible<=0 || (player.m_gui_layer & _gui_mask) == 0)
 	        {
 	            continue;
 	        }
@@ -3344,7 +3344,7 @@ yyRoom.prototype.DrawRoomLayers = function(_rect){
 ///				
 ///			 </returns>
 // #############################################################################################
-yyRoom.prototype.DrawTheRoom = function (_rect) {
+yyRoom.prototype.DrawTheRoom = function (_rect, _uiwidth, _uiheight) {
 
 	g_roomExtents = _rect;
     DirtyRoomExtents();
@@ -3357,12 +3357,18 @@ yyRoom.prototype.DrawTheRoom = function (_rect) {
 		Graphics_ClearScreen(ConvertGMColour(0xfff7ffff));
 	}
 
+	var uirect = new YYRECT();
+	uirect.right = _uiwidth;
+	uirect.bottom = _uiheight;
+
+	UILayers_Layout(uirect, eLAYER_GUI_IN_VIEW);
+
 	this.ExecuteDrawEvent(_rect, EVENT_DRAW_BEGIN);
 
     if(this.m_Layers!=null && this.m_Layers.length>0)
     {
         //Drawing as layers
-        this.DrawRoomLayers(_rect);
+        this.DrawRoomLayers(_rect, (eLAYER_NORMAL | eLAYER_GUI_IN_VIEW));
     }
    
     this.ExecuteDrawEvent(_rect, EVENT_DRAW_END);
@@ -3526,7 +3532,12 @@ function ResetLayerShader(shaderid)
 ///
 /// In:		 <param name="r">Rect to "fit" in</param>
 // #############################################################################################
-yyRoom.prototype.ExecuteDrawEvent = function (_rect, _event) {
+yyRoom.prototype.ExecuteDrawEvent = function (_rect, _event, _gui_mask) {
+	if(_gui_mask === undefined)
+	{
+		_gui_mask = eLAYER_NORMAL | eLAYER_GUI_IN_VIEW;
+	}
+
 	var pSprite, pInst, i, pool;
 	
 	Current_Event_Type = _event;
@@ -3542,7 +3553,7 @@ yyRoom.prototype.ExecuteDrawEvent = function (_rect, _event) {
 	    for (i = pool.length - 1; i >= 0; i--)
 	    {
 	        player =pool[i];
-	        if(player==null || player.m_visible==false)
+	        if(player==null || player.m_visible==false || (player.m_gui_layer & _gui_mask) == 0)
 	        {
 	            continue;
 	        }
@@ -3756,31 +3767,42 @@ yyRoom.prototype.DrawViews = function (r) {
 			        g_pCurrentView.WorldViewScaleX = g_pCurrentView.scaledportw / g_pCurrentView.worldw;
 			        g_pCurrentView.WorldViewScaleY = g_pCurrentView.scaledporth / g_pCurrentView.worldh;
 
+					var view_width;
+					var view_height;
 
 			        //view port in app surface...
 			        if (g_pCurrentView.surface_id != -1)
 			        {
 			            //fill surface with view
 			            Graphics_SetViewPort(0, 0, surface_get_width(g_pCurrentView.surface_id), surface_get_height(g_pCurrentView.surface_id) );
+
+						view_width = surface_get_width(g_pCurrentView.surface_id);
+						view_height = surface_get_height(g_pCurrentView.surface_id);
 			        }
 			        else
 			        {
                         // This appears to be overriding the application surface dimensions and view port
 			        	Graphics_SetViewPort( g_pCurrentView.portx * sx, g_pCurrentView.porty * sy,
                                               g_pCurrentView.portw * sx, g_pCurrentView.porth * sy );
+
+						view_width = g_pCurrentView.scaledportw;
+						view_height = g_pCurrentView.scaledporth;
                     }
 
 					g_pCameraManager.SetActiveCamera(g_pCurrentView.cameraID);
 					var pCam = g_pCameraManager.GetActiveCamera();
 					if(pCam!=null)
 					{
-						pCam.Begin();						
-						pCam.ApplyMatrices();												
+						pCam.Begin();
+						pCam.ApplyMatrices();
+
+						view_width = pCam.GetViewWidth();
+						view_height = pCam.GetViewHeight();
 		            }
 
                     
 					g_pBuiltIn.view_current = i;
-					this.DrawTheRoom(g_roomExtents);
+					this.DrawTheRoom(g_roomExtents, view_width, view_height);
 
 
 			        if (g_pCurrentView.surface_id != -1) {
@@ -3925,8 +3947,13 @@ yyRoom.prototype.DrawGUI = function (r) {
         g_roomExtents.right=gui_width;
         g_roomExtents.bottom=gui_height;
 
+		UILayers_Layout(g_roomExtents, eLAYER_GUI_IN_GUI);
+
+	    this.ExecuteDrawEvent(r, EVENT_DRAW_BEGIN, eLAYER_GUI_IN_GUI);
 	    this.ExecuteDrawEvent(r, EVENT_DRAW_GUI_BEGIN);
+		this.DrawRoomLayers(r, eLAYER_GUI_IN_GUI);
 	    this.ExecuteDrawEvent(r, EVENT_DRAW_GUI);
+		this.ExecuteDrawEvent(r, EVENT_DRAW_END, eLAYER_GUI_IN_GUI);
 	    this.ExecuteDrawEvent(r, EVENT_DRAW_GUI_END);
 	    g_InGUI_Zone = false;
         g_roomExtents.Copy(roomExtents);

@@ -55,7 +55,9 @@ const YGEdgeEnd = 5;
 const YGEdgeHorizontal = 6;
 const YGEdgeVertical = 7;
 const YGEdgeAll = 8;
-
+const YGMeasureModeUndefined = 0;
+const YGMeasureModeAtMost = 2;
+const YGMeasureModeExactly = 1;
 
 
 var g_positionType = {
@@ -1163,8 +1165,275 @@ function UILayers_Create()
 		g_UILayers.push({
 			node: node,
 			layer: layer,
+
+			x_offset: 0.0,
+			y_offset: 0.0,
 		});
+
+		UILayers_Create_node_elements(node, layer);
 	}
+}
+
+function UILayers_Create_node_elements(node, layer)
+{
+	var context = FLEXPANEL_GetContext(node);
+
+	for(var i = 0; i < context.elements.length; ++i)
+	{
+		var element = context.elements[i];
+		element.create_element(layer);
+	}
+
+	for(var i = 0; i < node.getChildCount(); ++i)
+	{
+		var child = node.getChild(i);
+		UILayers_Create_node_elements(child, layer);
+	}
+}
+
+function UILayers_Layout(rect, gui_mask)
+{
+	for(var i = 0; i < g_UILayers.length; ++i)
+	{
+		var ui_layer = g_UILayers[i];
+
+		if(!(ui_layer.layer.m_visible) || (ui_layer.layer.m_gui_layer & gui_mask) == 0)
+		{
+			continue;
+		}
+
+		/* Mark leaf nodes dirty so Yoga will rediscover their sizes. */
+		UILayers_Layout_node_prepare(ui_layer.node);
+
+		ui_layer.node.calculateLayout((rect.right - rect.left), (rect.bottom - rect.top), YGDirectionInherit); // TODO: layoutDirection parameter
+
+		var offset_rect = new YYRECT();
+		offset_rect.Copy(rect);
+
+		offset_rect.left += ui_layer.x_offset;
+		offset_rect.right += ui_layer.x_offset;
+
+		offset_rect.top += ui_layer.y_offset;
+		offset_rect.bottom += ui_layer.y_offset;
+
+		UILayers_Layout_node_position(ui_layer.node, offset_rect, offset_rect, false);
+	}
+}
+
+function UILayers_Layout_node_prepare(node)
+{
+	var is_leaf_node = true;
+
+	for(var i = 0; i < node.getChildCount(); ++i)
+	{
+		var child = node.getChild(i);
+		UILayers_Layout_node_prepare(child);
+
+		is_leaf_node = false;
+	}
+
+	/* We only supply a measure function for nodes which contain no nested flex panels. */
+	if (is_leaf_node)
+	{
+		// TODO: Can we rely on g_yoga in global scope to only define this once?
+		var UILayers_MeasureCallbackWrapper = g_yoga.MeasureCallback.extend("MeasureCallback", {
+			__construct: function(node) {
+				this.__parent.__construct.call(this);
+				this.node = node;
+			},
+
+			measure: function(width, widthMode, height, heightMode)
+			{
+				return UILayers_Layout_measure_node(this.node, width, widthMode, height, heightMode);
+			},
+		});
+
+		node.setMeasureFunc(new UILayers_MeasureCallbackWrapper(node));
+		node.markDirty();
+	}
+	else {
+		node.unsetMeasureFunc();
+	}
+}
+
+function UILayers_Layout_measure_node(node, width, widthMode, height, heightMode)
+{
+	var context = FLEXPANEL_GetContext(node);
+
+	var max_width_constraint;
+	var max_height_constraint;
+
+	switch (widthMode)
+	{
+	case YGMeasureModeUndefined:
+		max_width_constraint = Number.MAX_VALUE;
+		break;
+
+	case YGMeasureModeAtMost:
+	case YGMeasureModeExactly:
+		max_width_constraint = width;
+		break;
+	}
+
+	switch (heightMode)
+	{
+	case YGMeasureModeUndefined:
+		max_height_constraint = Number.MAX_VALUE;
+		break;
+
+	case YGMeasureModeAtMost:
+	case YGMeasureModeExactly:
+		max_height_constraint = height;
+		break;
+	}
+
+	var max_w = 0.0;
+	var max_h = 0.0;
+
+	for (var i = 0; i < context.elements.length; ++i)
+	{
+		var item_size = context.elements[i].measure_item(this, max_width_constraint, max_height_constraint);
+
+		max_w = Math.max(max_w, item_size.width);
+		max_h = Math.max(max_h, item_size.height);
+	}
+
+	var computed_size = { width: undefined, height: undefined };
+
+	switch (widthMode)
+	{
+		case YGMeasureModeUndefined:
+			computed_size.width = max_w;
+			break;
+
+		case YGMeasureModeAtMost:
+			computed_size.width = Math.min(max_w, width);
+			break;
+
+		case YGMeasureModeExactly:
+			computed_size.width = width;
+			break;
+	}
+
+	switch (heightMode)
+	{
+	case YGMeasureModeUndefined:
+		computed_size.height = max_h;
+		break;
+
+	case YGMeasureModeAtMost:
+		computed_size.height = Math.min(max_h, height);
+		break;
+
+	case YGMeasureModeExactly:
+		computed_size.height = height;
+		break;
+	}
+
+	return computed_size;
+}
+
+function UILayers_Layout_node_position(node, outer_container, clipping_rect, set_clipping_rect)
+{
+	var context = FLEXPANEL_GetContext(node);
+
+	/* Get our bounding box relative to our parent container. */
+	var local_x = node.getComputedLeft();
+	var local_y = node.getComputedTop();
+	var local_w = node.getComputedWidth();
+	var local_h = node.getComputedHeight();
+
+	var container = new YYRECT();
+	container.left = outer_container.left + local_x;
+	container.top = outer_container.top + local_y;
+	container.right = container.left + local_w - 1.0;
+	container.bottom = container.top + local_h - 1.0;
+
+	var container_clip = context.clip_content
+		? YYRECT.Intersection(container, clipping_rect)
+		: clipping_rect;
+
+	if(context.clip_content)
+	{
+		set_clipping_rect = true;
+	}
+
+	for(var i = 0; i < node.getChildCount(); ++i)
+	{
+		var child = node.getChild(i);
+		UILayers_Layout_node_position(child, container, container_clip, set_clipping_rect);
+	}
+
+	for(var i = 0; i < context.elements.length; ++i)
+	{
+		var element = context.elements[i];
+		element.position(container, container_clip, set_clipping_rect);
+	}
+}
+
+function UILayers_translate_element_position(container, x, y, anchor)
+{
+	var origin_x = 0.0;
+	var origin_y = 0.0;
+
+	switch (anchor)
+	{
+	case "TopLeft":
+	case "MiddleLeft":
+	case "BottomLeft":
+		origin_x = container.left;
+		break;
+
+	case "TopCentre":
+	case "MiddleCentre":
+	case "BottomCentre":
+	{
+		var container_w = container.right - container.left + 1.0;
+		origin_x = container.left + (container_w / 2.0);
+		break;
+	}
+
+	case "TopRight":
+	case "MiddleRight":
+	case "BottomRight":
+		origin_x = container.right;
+		break;
+
+	default:
+		break;
+	}
+
+	switch (anchor)
+	{
+	case "TopLeft":
+	case "TopCentre":
+	case "TopRight":
+		origin_y = container.top;
+		break;
+
+	case "MiddleLeft":
+	case "MiddleCentre":
+	case "MiddleRight":
+	{
+		var container_h = container.bottom - container.top + 1.0;
+		origin_y = container.top + (container_h / 2.0);
+		break;
+	}
+
+	case "BottomLeft":
+	case "BottomCentre":
+	case "BottomRight":
+		origin_y = container.bottom;
+		break;
+
+	default:
+		break;
+	}
+
+	var translated_x = origin_x + x;
+	var translated_y = origin_y + y;
+
+	return [ translated_x, translated_y ];
 }
 
 function UILayerInstanceElement(element_data, from_wad)
@@ -1191,6 +1460,100 @@ function UILayerInstanceElement(element_data, from_wad)
 	this.m_element_id = undefined;
 }
 
+UILayerInstanceElement.prototype.create_element = function(target_layer)
+{
+	if(this.m_element_id !== undefined)
+	{
+		/* Element has already been created. */
+		return;
+	}
+
+	/* Instances created from the WAD have a fixed ID, ones created from a GML structure get the
+	 * next free one as if created by instance_create_depth() etc.
+	*/
+	var new_instance_id = this.instanceId !== undefined
+		? this.instanceId
+		: room_maxid++;
+
+	var instance = new yyInstance(0.0, 0.0, new_instance_id, this.instanceObjectIndex, true);
+
+	// TODO: Variables
+
+	// pI->SetInitCode(Code_GetEntry(m_params.m_init_code_slot));
+	// pI->SetPreCreateCode(Code_GetEntry(m_params.m_pre_create_code_slot));
+	instance.image_xscale = this.instanceScaleX;
+	instance.image_yscale = this.instanceScaleY;
+	instance.image_speed = this.instanceImageSpeed;
+	instance.image_index = this.instanceImageIndex;
+	instance.sequence_pos = instance.last_sequence_pos = this.instanceImageIndex;
+	instance.image_blend = ConvertGMColour(this.instanceColour & 0xffffff);
+	instance.image_alpha = ((this.instanceColour >> 24) & 0xff) / 255.0;
+	instance.image_angle = this.instanceAngle;
+	// Current_Object = pI->GetObjectIndex();
+	// pI->CreatePhysicsBody(Run_Room);
+
+	if (this.stretchWidth || this.stretchHeight)
+	{
+		instance.image_angle = 0.0;
+	}
+
+	/* Copied from LayerManager.BuildRoomLayers */
+
+	var NewInstanceElement = new CLayerInstanceElement();
+	NewInstanceElement.m_instanceID = new_instance_id;
+	NewInstanceElement.m_pInstance = instance;
+
+	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target_layer, NewInstanceElement, true);
+};
+
+UILayerInstanceElement.prototype.position = function(container, clipping_rect, set_clipping_rect)
+{
+	if(this.m_element_id === undefined)
+	{
+		/* Element hasn't been created yet. */
+		return;
+	}
+
+	var element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id);
+	if(element !== null)
+	{
+		var instance = element.m_pInstance;
+
+		var translated_position = UILayers_translate_element_position(container, this.instanceOffsetX, this.instanceOffsetY, this.flexAnchor);
+
+		instance.x = translated_position[0];
+		instance.y = translated_position[1];
+
+		// TODO: Stretch
+		// TODO: Clipping
+	}
+};
+
+UILayerInstanceElement.prototype.measure_item = function(node, max_width, max_height)
+{
+	if(this.m_element_id === undefined)
+	{
+		/* Element hasn't been created yet. */
+		return { width: 0.0, height: 0.0 };
+	}
+
+	var element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id);
+	if(element !== null)
+	{
+		var instance = element.m_pInstance;
+
+		instance.Maybe_Compute_BoundingBox();
+
+		return {
+			width: (((instance.bbox.right - instance.bbox.left) / instance.image_xscale) * this.instanceScaleX),
+			height: (((instance.bbox.bottom - instance.bbox.top) / instance.image_yscale) * this.instanceScaleY),
+		};
+	}
+	else{
+		return { width: 0.0, height: 0.0 };
+	}
+};
+
 function UILayerSequenceElement(element_data, from_wad)
 {
 	this.elementOrder         = element_data.elementOrder;
@@ -1216,6 +1579,53 @@ function UILayerSequenceElement(element_data, from_wad)
 	this.m_element_id = undefined;
 }
 
+UILayerSequenceElement.prototype.create_element = function(target_layer)
+{
+	if(this.m_element_id !== undefined)
+	{
+		/* Element has already been created. */
+		return;
+	}
+
+	/* Copied from LayerManager.BuildRoomLayers */
+
+	var NewSequence = new CLayerSequenceElement();
+
+	NewSequence.m_sequenceIndex = this.sequenceIndex;
+	NewSequence.m_headPosition = this.sequenceHeadPosition;
+	NewSequence.m_imageBlend = ConvertGMColour(this.sequenceColour & 0xffffff);
+	NewSequence.m_imageAlpha = ((this.sequenceColour >> 24) & 0xff) / 255.0;
+	NewSequence.m_angle = this.sequenceAngle;
+	// NewSequence.m_name = pLayer.sequences[i].sName; TODO(?)
+	NewSequence.m_imageSpeed = this.sequenceImageSpeed;
+	NewSequence.m_playbackSpeedType = this.sequenceSpeedType;
+
+	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target, NewSequence, true);
+};
+
+UILayerSequenceElement.prototype.position = function(container, clipping_rect, set_clipping_rect)
+{
+	var element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id);
+	if(element !== null)
+	{
+		var translated_position = UILayers_translate_element_position(container, this.sequenceOffsetX, this.sequenceOffsetY, this.flexAnchor);
+
+		element.m_x = translated_position[0];
+		element.m_y = translated_position[1];
+		element.m_scaleX = this.sequenceScaleX;
+		element.m_scaleY = this.sequenceScaleY;
+
+		// TODO: Stretch
+		// TODO: Clipping
+	}
+};
+
+UILayerSequenceElement.prototype.measure_item = function(node, max_width, max_height)
+{
+	// TODO
+	return { width: 0.0, height: 0.0 };
+};
+
 function UILayerSpriteElement(element_data, from_wad)
 {
 	this.elementOrder     = element_data.elementOrder;
@@ -1240,6 +1650,103 @@ function UILayerSpriteElement(element_data, from_wad)
 
 	this.m_element_id = undefined;
 }
+
+UILayerSpriteElement.prototype.create_element = function(target_layer)
+{
+	if(this.m_element_id !== undefined)
+	{
+		/* Element has already been created. */
+		return;
+	}
+
+	/* Copied from LayerManager.BuildRoomLayers */
+
+	var NewSprite = new CLayerSpriteElement();
+	NewSprite.m_spriteIndex = this.spriteIndex;
+	NewSprite.m_sequencePos = this.spriteImageIndex;
+	NewSprite.m_sequenceDir = 1.0;
+
+	NewSprite.m_imageSpeed = this.spriteImageSpeed;
+	NewSprite.m_playbackspeedtype = this.spriteSpeedType;
+	NewSprite.m_imageIndex = this.spriteImageIndex;
+	NewSprite.m_imageScaleX = this.spriteScaleX;
+	NewSprite.m_imageScaleY = this.spriteScaleY;
+	NewSprite.m_imageAngle = this.spriteAngle;
+	NewSprite.m_imageBlend = ConvertGMColour(this.spriteColour & 0xffffff);
+	NewSprite.m_imageAlpha = ((this.spriteColour >> 24)&0xff) / 255.0;
+
+	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target_layer, NewSprite, true);
+};
+
+UILayerSpriteElement.prototype.position = function(container, clipping_rect, set_clipping_rect)
+{
+	if(this.m_element_id === undefined)
+	{
+		/* Element hasn't been created yet. */
+		return;
+	}
+
+	var element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id);
+	if(element !== null)
+	{
+		var translated_position = UILayers_translate_element_position(container, this.spriteOffsetX, this.spriteOffsetY, this.flexAnchor);
+
+		element.m_x = translated_position[0];
+		element.m_y = translated_position[1];
+
+		// TODO: Stretch
+		// TODO: Tiling
+		// TODO: Clipping
+	}
+};
+
+UILayerSpriteElement.prototype.measure_item = function(node, max_width, max_height)
+{
+	var sprite = g_pSpriteManager.Get(this.spriteIndex);
+
+	if(sprite !== null)
+	{
+		/* Get the size of the base sprite, applying the scale of the layer element. */
+		var sprite_width = sprite.GetWidth() * this.spriteScaleX;
+		var sprite_height = sprite.GetHeight() * this.spriteScaleY;
+
+		/* Skip rotation if angle is zero. */
+		if(Math.abs(this.spriteAngle) > g_GMLMathEpsilon)
+		{
+			/* Rotate each corner around the scaled origin to get the total bounds of the sprite with rotation. */
+
+			var scaled_origin_x = sprite.GetXOrigin() * this.spriteScaleX;
+			var scaled_origin_y = sprite.GetYOrigin() * this.spriteScaleY;
+
+			var p1 = [ 0.0, 0.0 ];
+			var p2 = [ sprite_width, 0.0 ];
+			var p3 = [ 0.0, sprite_height ];
+			var p4 = [ sprite_width, sprite_height ];
+
+			var rot_matrix = new yyRotationMatrix(-this.spriteAngle);
+
+			p1 = RotatePointAroundOrigin(p1, [ scaled_origin_x, scaled_origin_y ], rot_matrix);
+			p2 = RotatePointAroundOrigin(p2, [ scaled_origin_x, scaled_origin_y ], rot_matrix);
+			p3 = RotatePointAroundOrigin(p3, [ scaled_origin_x, scaled_origin_y ], rot_matrix);
+			p4 = RotatePointAroundOrigin(p4, [ scaled_origin_x, scaled_origin_y ], rot_matrix);
+
+			/* Use the min/max points to make a bounding rect of the rotated sprite. */
+
+			var extent_left = Math.min(p1[0], Math.min(p2[0], Math.min(p3[0], p4[0])));
+			var extent_top = Math.min(p1[1], Math.min(p2[1], Math.min(p3[1], p4[1])));
+			var extent_right = Math.max(p1[0], Math.max(p2[0], Math.max(p3[0], p4[0])));
+			var extent_bottom = Math.max(p1[1], Math.max(p2[1], Math.max(p3[1], p4[1])));
+
+			sprite_width = (extent_right - extent_left) + 1.0;
+			sprite_height = (extent_bottom - extent_top) + 1.0;
+		}
+
+		return { width: sprite_width, height: sprite_height };
+	}
+	else{
+		return { width: 0.0, height: 0.0 };
+	}
+};
 
 function UILayerTextElement(element_data, from_wad)
 {
@@ -1269,3 +1776,61 @@ function UILayerTextElement(element_data, from_wad)
 
 	this.m_element_id = undefined;
 }
+
+UILayerTextElement.prototype.create_element = function(target_layer)
+{
+	if(this.m_element_id !== undefined)
+	{
+		/* Element has already been created. */
+		return;
+	}
+
+	/* Copied from LayerManager.BuildRoomLayers */
+
+	var NewTextItem = new CLayerTextElement();
+	NewTextItem.m_fontIndex = this.textFontIndex;
+	NewTextItem.m_angle = this.textAngle;
+	NewTextItem.m_blend = ConvertGMColour(this.textColour & 0xffffff);
+	NewTextItem.m_alpha = ((this.textColour >> 24) & 0xff) / 255.0;
+	NewTextItem.m_originX = this.textOriginX;
+	NewTextItem.m_originY = this.textOffsetY;
+	NewTextItem.m_text = this.textText;
+	NewTextItem.m_alignment = this.textAlignment;
+	NewTextItem.m_charSpacing = this.textCharacterSpacing;
+	NewTextItem.m_lineSpacing = this.textLineSpacing;
+	NewTextItem.m_frameW = this.textFrameWidth;
+	NewTextItem.m_frameH = this.textFrameHeight;
+	NewTextItem.m_wrap = this.textWrap;
+	// NewTextItem.m_name = pLayer.textitems[i].sName; TODO(?)
+
+	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target_layer, NewTextItem, true);
+};
+
+UILayerTextElement.prototype.position = function(container, clipping_rect, set_clipping_rect)
+{
+	if(this.m_element_id === undefined)
+	{
+		/* Element hasn't been created yet. */
+		return;
+	}
+
+	var element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id);
+	if(element !== null)
+	{
+		var translated_position = UILayers_translate_element_position(container, this.textOffsetX, this.textOffsetY, this.flexAnchor);
+
+		element.m_x = translated_position[0];
+		element.m_y = translated_position[1];
+		element.m_scaleX = this.textScaleX;
+		element.m_scaleY = this.textScaleY;
+
+		// TODO: Stretch
+		// TODO: Clipping
+	}
+};
+
+UILayerTextElement.prototype.measure_item = function(node, max_width, max_height)
+{
+	// TODO
+	return { width: 100, height: 50 };
+};
