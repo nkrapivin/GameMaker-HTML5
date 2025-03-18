@@ -1327,6 +1327,7 @@ function StartRoom( _numb, _starting )
 	g_pBuiltIn.room = g_RunRoom.id;	
 	SetCanvasSize();
 
+	g_pLayerManager.RestoreUILayers(g_RunRoom);
 	UILayers_Create();
 
     //initialise view scaledport properties- mouse_x/y will return NaN until first draw otherwise

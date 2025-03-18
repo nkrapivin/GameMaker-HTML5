@@ -53,6 +53,8 @@ var TileIndex_Shift = 0;
 var TileIndex_Mask = (0x7ffff << TileIndex_Shift);
 var TileIndex_ShiftedMask = (0x7ffff);
 
+var g_TransitioningUILayers = [];
+
 /** @constructor */
 function CBackGM2()
 {
@@ -124,6 +126,10 @@ CLayer.prototype.GetInitialEffectInfo = function()
     return this.m_pInitialEffectInfo;
 };
 
+CLayer.prototype.IsUILayer = function()
+{
+    return this.m_gui_layer != eLAYER_NORMAL;
+};
 
 /** @constructor */
 function YYRoomLayer()
@@ -1687,7 +1693,39 @@ LayerManager.prototype.CleanRoomLayers = function(_room)
             continue;
         }
 
-        this.RemoveLayer(_room, pLayer.m_id, false);        
+        if(pLayer.IsUILayer())
+        {
+            /* Stash the layer to be injected into the next room by StartRoom(). */
+
+            _room.m_Layers.Delete(pLayer);
+            g_TransitioningUILayers.push(pLayer);
+        }
+        else{
+            this.RemoveLayer(_room, pLayer.m_id, false);
+        }
+    }
+};
+
+LayerManager.prototype.RestoreUILayers = function(_room)
+{
+    while(g_TransitioningUILayers.length > 0)
+    {
+        var layer = g_TransitioningUILayers.pop();
+
+        _room.m_Layers.Add(layer);
+
+        /* Insert all elements (assets/instances/etc) on the UI layer into the room's lookup tables. */
+        for(var i = 0; i < layer.m_elements.length; i++)
+        {
+            var element = layer.m_elements.Get(i);
+            if (element == null)
+                continue;
+
+            if (element.m_type == eLayerElementType_Sequence)
+            {
+                _room.AddSeqInstance(element.m_id);
+            }
+        }
     }
 };
 
