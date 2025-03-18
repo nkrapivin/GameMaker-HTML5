@@ -1402,10 +1402,9 @@ function StartRoom( _numb, _starting )
             }
         }        
         
-        var pInstStorage = g_RunRoom.m_pStorage.pInstances;
-        for(var l=0; l < g_RunRoom.m_pStorage.pInstances.length; l++)
+        for(var l=0; l < g_RunRoom.m_creationOrder.length; l++)
         {
-            var pIStore = g_RunRoom.m_pStorage.pInstances[l];
+            var pIStore = g_RunRoom.m_creationOrder[l];
             var pInstance = g_pInstanceManager.Get(pIStore.id);
             if (pInstance && (pInstance.createdone == false)) {
             

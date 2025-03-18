@@ -735,6 +735,8 @@ function room_instance_add(_ind,_x,_y,_obj)
             index: yyGetInt32(_obj), 
             id: instance_id };
 
+        pRoom.m_creationOrder.push(pRoom.m_pStorage.pInstances[instanceIndex]);
+
 		return MAKE_REF(REFID_INSTANCE, instance_id);
 	}
 	

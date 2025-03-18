@@ -1068,9 +1068,8 @@ LayerManager.prototype.AddInstance= function (_room,_inst)
 
 LayerManager.prototype.AddInstanceToLayer= function(_room,_layer,_inst)
 {
-
     if(_room == null || _layer==null || _inst===null)
-        return;
+        return undefined;
    
     if(_inst.GetOnActiveLayer() === false)
     {
@@ -1081,8 +1080,10 @@ LayerManager.prototype.AddInstanceToLayer= function(_room,_layer,_inst)
         _inst.SetOnActiveLayer(true);
         NewInstanceElement.m_bRuntimeDataInitialised = true;
         
-        g_pLayerManager.AddNewElement(_room, _layer, NewInstanceElement, false);
+        return g_pLayerManager.AddNewElement(_room, _layer, NewInstanceElement, false);
     }
+
+    return undefined;
 };
 
 LayerManager.prototype.RemoveInstance = function (_room, _inst) {
@@ -1721,7 +1722,17 @@ LayerManager.prototype.RestoreUILayers = function(_room)
             if (element == null)
                 continue;
 
-            if (element.m_type == eLayerElementType_Sequence)
+            if (element.m_type == eLayerElementType_Instance)
+            {
+                if(element.m_pInstance.active)
+                {
+                    _room.m_Active.Add(element.m_pInstance);
+                }
+                else{
+                    this.m_Deactive.Add(element.m_pInstance);
+                }
+            }
+            else if (element.m_type == eLayerElementType_Sequence)
             {
                 _room.AddSeqInstance(element.m_id);
             }

@@ -1497,13 +1497,12 @@ UILayerInstanceElement.prototype.create_element = function(target_layer)
 		instance.image_angle = 0.0;
 	}
 
-	/* Copied from LayerManager.BuildRoomLayers */
+	instance.SetOnUILayer(true);
 
-	var NewInstanceElement = new CLayerInstanceElement();
-	NewInstanceElement.m_instanceID = new_instance_id;
-	NewInstanceElement.m_pInstance = instance;
+	this.m_element_id = g_pLayerManager.AddInstanceToLayer(g_RunRoom, target_layer, instance);
 
-	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target_layer, NewInstanceElement, true);
+	g_RunRoom.m_Active.Add(instance);
+	g_pInstanceManager.Add(instance);
 };
 
 UILayerInstanceElement.prototype.position = function(container, clipping_rect, set_clipping_rect)

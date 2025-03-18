@@ -15,6 +15,10 @@
 // 
 // **********************************************************************************************************************
 
+//Room creation order list should only be done on first visit to first room, thereafter ui layer
+// instances have been created and it is left to the order of instances in the room
+var g_DoneFirstRoomCreation = false;
+
 // #############################################################################################
 /// Function:<summary>
 ///             Game Maker "ACTIVE" Room class
@@ -78,6 +82,7 @@ yyRoom.prototype.Init = function () {
 
 	// RK :: Used to reduce the amount of memory used when loading rooms
 	this.m_pStorage = null;
+	this.m_creationOrder = [];
 
 	this.m_pName = "Room";
 	
@@ -285,6 +290,7 @@ yyRoom.prototype.CloneStorage = function (_pStorage) {
     
 		// Instances
         this.m_pStorage.pInstances = new Array(_pStorage.pInstances.length);
+        this.m_creationOrder = new Array();
         for (var i = 0; i < _pStorage.pInstances.length; i++) 
         {
             var sourceInstance = _pStorage.pInstances[i];
@@ -304,8 +310,10 @@ yyRoom.prototype.CloneStorage = function (_pStorage) {
                     pCode: sourceInstance.pCode,
                     pPreCreateCode: sourceInstance.pPreCreateCode
                 };
+
+                this.m_creationOrder.push(this.m_pStorage.pInstances[i]);
             }
-        }        
+        }
 
 		// Layers
         this.m_pStorage.layers = new Array( _pStorage.layers.length );
@@ -560,6 +568,50 @@ yyRoom.prototype.CreateRoomFromStorage = function (_pRoomStorage)
 	        g_pLayerManager.BuildRoomLayers(this,_pRoomStorage.layers);
 	    }
 	}
+
+	/* The first room written by the asset compiler includes a 'creationOrderIds' property
+	 * which defines the creation order of any room instances *and* UI layer instances, after
+	 * the first room has been constructed we stop using it since the UI layer instances have
+	 * already been created.
+	*/
+	if(!g_DoneFirstRoomCreation && _pRoomStorage.creationOrderIds !== undefined)
+	{
+		for(var i = 0; i < _pRoomStorage.creationOrderIds.length; ++i)
+		{
+			var found_in_room = false;
+
+			/* Find the correct element from m_pStorage.pInstances */
+			for(var j = 0; j < this.m_pStorage.pInstances.length; ++j)
+			{
+				var p = this.m_pStorage.pInstances[i];
+
+				if(p !== undefined && p.id == _pRoomStorage.creationOrderIds[i])
+				{
+					this.m_creationOrder.push(p);
+					found_in_room = true;
+					break;
+				}
+			}
+
+			if(!found_in_room)
+			{
+				/* Didn't find the instance in the room... must be on a UI layer. */
+
+				// TODO: Populate pPreCreateCode and/or pCode
+				this.m_creationOrder.push({
+					id: _pRoomStorage.creationOrderIds[i],
+				});
+			}
+		}
+	}
+	else{
+		for(var j = 0; j < this.m_pStorage.pInstances.length; ++j)
+		{
+			this.m_creationOrder.push(this.m_pStorage.pInstances[j]);
+		}
+	}
+
+	g_DoneFirstRoomCreation = true;
 };
 
 // #############################################################################################
@@ -596,6 +648,12 @@ yyRoom.prototype.ClearInstances = function (do_delete_events) {
 	for (i = this.m_Active.length - 1; i >= 0; i--)
 	{
 		var inst = this.m_Active.Get(0);
+
+		if(inst.GetOnUILayer())
+		{
+			continue;
+		}
+
 		if (do_delete_events)
 		{
 			inst.PerformEvent( EVENT_CLEAN_UP,0, inst, inst );
@@ -605,7 +663,14 @@ yyRoom.prototype.ClearInstances = function (do_delete_events) {
 
 	for (i = this.m_Deactive.length - 1; i >= 0; i--)
 	{
-		this.DeleteInstance(this.m_Deactive.Get(0));
+		var inst = this.m_Deactive.Get(0);
+
+		if(inst.GetOnUILayer())
+		{
+			continue;
+		}
+
+		this.DeleteInstance(inst);
 	}
 };
 
@@ -618,6 +683,7 @@ yyRoom.prototype.ClearInstances = function (do_delete_events) {
 // #############################################################################################
 yyRoom.prototype.ClearInstancesFromStorage = function () {
     this.m_pStorage.pInstances = [];
+    this.m_creationOrder = [];
 };
 
 yyRoom.prototype.GetView= function(index) {

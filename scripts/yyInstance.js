@@ -141,6 +141,7 @@ function    yyInstance( _xx, _yy, _id, _objectind, _AddObjectLink, _create_dummy
     }
 	this.m_nLayerID = -1;
 	this.m_bOnActiveLayer = false;
+	this.m_bOnUILayer = false;
 }
 
 yyInstance.prototype = {
@@ -3248,7 +3249,8 @@ yyInstance.prototype.GetLayerID=function()	{ return this.m_nLayerID; };
 yyInstance.prototype.SetLayerID=function(_layerID)	{ this.m_nLayerID = _layerID; };
 yyInstance.prototype.GetOnActiveLayer=function() { return this.m_bOnActiveLayer; };
 yyInstance.prototype.SetOnActiveLayer=function( _onLayer)	{ this.m_bOnActiveLayer = _onLayer; };
-
+yyInstance.prototype.GetOnUILayer = function() { return this.m_bOnUILayer; }
+yyInstance.prototype.SetOnUILayer = function(_onUILayer) { this.m_bOnUILayer = _onUILayer; };
 
 // #############################################################################################
 /// Function:<summary>
