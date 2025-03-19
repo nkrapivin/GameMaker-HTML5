@@ -1566,6 +1566,7 @@ function UILayerSequenceElement(element_data, from_wad)
 	this.sequenceSpeedType    = element_data.sequenceSpeedType;
 	this.sequenceHeadPosition = element_data.sequenceHeadPosition;
 	this.sequenceAngle        = element_data.sequenceAngle;
+	this.sequenceName         = from_wad ? element_data.sequenceName : undefined;
 
 	this.flexVisible    = element_data.flexVisible;
 	this.flexAnchor     = element_data.flexAnchor;
@@ -1595,9 +1596,13 @@ UILayerSequenceElement.prototype.create_element = function(target_layer)
 	NewSequence.m_imageBlend = ConvertGMColour(this.sequenceColour & 0xffffff);
 	NewSequence.m_imageAlpha = ((this.sequenceColour >> 24) & 0xff) / 255.0;
 	NewSequence.m_angle = this.sequenceAngle;
-	// NewSequence.m_name = pLayer.sequences[i].sName; TODO(?)
 	NewSequence.m_imageSpeed = this.sequenceImageSpeed;
 	NewSequence.m_playbackSpeedType = this.sequenceSpeedType;
+
+	if(this.sequenceName !== undefined)
+	{
+		NewSprite.m_name = this.sequenceName;
+	}
 
 	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target, NewSequence, true);
 };
@@ -1638,6 +1643,7 @@ function UILayerSpriteElement(element_data, from_wad)
 	this.spriteSpeedType  = element_data.spriteSpeedType;
 	this.spriteImageIndex = element_data.spriteImageIndex;
 	this.spriteAngle      = element_data.spriteAngle;
+	this.spriteName       = from_wad ? element_data.spriteName : undefined;
 
 	this.flexVisible    = element_data.flexVisible;
 	this.flexAnchor     = element_data.flexAnchor;
@@ -1673,6 +1679,11 @@ UILayerSpriteElement.prototype.create_element = function(target_layer)
 	NewSprite.m_imageAngle = this.spriteAngle;
 	NewSprite.m_imageBlend = ConvertGMColour(this.spriteColour & 0xffffff);
 	NewSprite.m_imageAlpha = ((this.spriteColour >> 24)&0xff) / 255.0;
+
+	if(this.spriteName !== undefined)
+	{
+		NewSprite.m_name = this.spriteName;
+	}
 
 	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target_layer, NewSprite, true);
 };
@@ -1766,6 +1777,7 @@ function UILayerTextElement(element_data, from_wad)
 	this.textFrameWidth       = element_data.textFrameWidth;
 	this.textFrameHeight      = element_data.textFrameHeight;
 	this.textWrap             = element_data.textWrap;
+	this.textName             = element_data.textName;
 
 	this.flexVisible    = element_data.flexVisible;
 	this.flexAnchor     = element_data.flexAnchor;
@@ -1800,7 +1812,11 @@ UILayerTextElement.prototype.create_element = function(target_layer)
 	NewTextItem.m_frameW = this.textFrameWidth;
 	NewTextItem.m_frameH = this.textFrameHeight;
 	NewTextItem.m_wrap = this.textWrap;
-	// NewTextItem.m_name = pLayer.textitems[i].sName; TODO(?)
+
+	if(this.textName !== undefined)
+	{
+		NewTextItem.m_name = this.textName;
+	}
 
 	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target_layer, NewTextItem, true);
 };
