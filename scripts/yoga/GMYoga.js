@@ -1436,6 +1436,8 @@ function UILayers_translate_element_position(container, x, y, anchor)
 	return [ translated_x, translated_y ];
 }
 
+var g_UILayerInstanceElementsFromWAD = {};
+
 function UILayerInstanceElement(element_data, from_wad)
 {
 	this.elementOrder        = element_data.elementOrder;
@@ -1449,7 +1451,20 @@ function UILayerInstanceElement(element_data, from_wad)
 	this.instanceImageIndex  = element_data.instanceImageIndex;
 	this.instanceColour      = element_data.instanceColour;
 	this.instanceAngle       = element_data.instanceAngle;
-	this.instanceId          = from_wad ? element_data.instanceId : undefined;
+
+	if(from_wad)
+	{
+		this.instanceId          = element_data.instanceId;
+		this.instanceCreate      = element_data.instanceCreate;
+		this.instancePreCreate   = element_data.instancePreCreate;
+
+		g_UILayerInstanceElementsFromWAD[this.instanceId] = this;
+	}
+	else{
+		this.instanceId          = undefined;
+		this.instanceCreate      = undefined;
+		this.instancePreCreate   = undefined;
+	}
 
 	this.flexVisible    = element_data.flexVisible;
 	this.flexAnchor     = element_data.flexAnchor;
@@ -1476,6 +1491,7 @@ UILayerInstanceElement.prototype.create_element = function(target_layer)
 		: room_maxid++;
 
 	var instance = new yyInstance(0.0, 0.0, new_instance_id, this.instanceObjectIndex, true);
+	instance.createdone = false;
 
 	// TODO: Variables
 

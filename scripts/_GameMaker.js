@@ -1408,21 +1408,32 @@ function StartRoom( _numb, _starting )
             var pInstance = g_pInstanceManager.Get(pIStore.id);
             if (pInstance && (pInstance.createdone == false)) {
             
-            	pInstance.createdone = true;    	
-            	
+            	pInstance.createdone = true;
+
+            	var pCode = pIStore.pCode;
+            	var pPreCreateCode = pIStore.pPreCreateCode;
+
+            	if(pIStore.uiLayer)
+            	{
+            		var ui_element = g_UILayerInstanceElementsFromWAD[ pIStore.id ];
+
+            		pCode = ui_element.instanceCreate;
+            		pPreCreateCode = ui_element.instancePreCreate;
+            	}
+
             	if(!g_CreateEventOrderSwap && !g_isZeus) {
             	
-            		if (pIStore.pCode) pIStore.pCode(pInstance, pInstance);
+            		if (pCode) pCode(pInstance, pInstance);
             		pInstance.PerformEvent(EVENT_PRE_CREATE, 0, pInstance, pInstance);
-            		if (pIStore.pPreCreateCode) pIStore.pPreCreateCode(pInstance, pInstance);
+            		if (pPreCreateCode) pPreCreateCode(pInstance, pInstance);
             		pInstance.PerformEvent(EVENT_CREATE, 0, pInstance, pInstance);
             	} 
             	else {
             	
             		pInstance.PerformEvent(EVENT_PRE_CREATE, 0, pInstance, pInstance);
-            		if (pIStore.pPreCreateCode) pIStore.pPreCreateCode(pInstance, pInstance);
+            		if (pPreCreateCode) pPreCreateCode(pInstance, pInstance);
             		pInstance.PerformEvent(EVENT_CREATE, 0, pInstance, pInstance);
-            		if (pIStore.pCode) pIStore.pCode(pInstance, pInstance);
+            		if (pCode) pCode(pInstance, pInstance);
             	}
             }
         }

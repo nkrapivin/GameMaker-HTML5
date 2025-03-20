@@ -583,7 +583,7 @@ yyRoom.prototype.CreateRoomFromStorage = function (_pRoomStorage)
 			/* Find the correct element from m_pStorage.pInstances */
 			for(var j = 0; j < this.m_pStorage.pInstances.length; ++j)
 			{
-				var p = this.m_pStorage.pInstances[i];
+				var p = this.m_pStorage.pInstances[j];
 
 				if(p !== undefined && p.id == _pRoomStorage.creationOrderIds[i])
 				{
@@ -597,9 +597,9 @@ yyRoom.prototype.CreateRoomFromStorage = function (_pRoomStorage)
 			{
 				/* Didn't find the instance in the room... must be on a UI layer. */
 
-				// TODO: Populate pPreCreateCode and/or pCode
 				this.m_creationOrder.push({
 					id: _pRoomStorage.creationOrderIds[i],
+					uiLayer: true,
 				});
 			}
 		}
