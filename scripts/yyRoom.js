@@ -15,6 +15,10 @@
 // 
 // **********************************************************************************************************************
 
+//Room creation order list should only be done on first visit to first room, thereafter ui layer
+// instances have been created and it is left to the order of instances in the room
+var g_DoneFirstRoomCreation = false;
+
 // #############################################################################################
 /// Function:<summary>
 ///             Game Maker "ACTIVE" Room class
@@ -78,6 +82,7 @@ yyRoom.prototype.Init = function () {
 
 	// RK :: Used to reduce the amount of memory used when loading rooms
 	this.m_pStorage = null;
+	this.m_creationOrder = [];
 
 	this.m_pName = "Room";
 	
@@ -285,6 +290,7 @@ yyRoom.prototype.CloneStorage = function (_pStorage) {
     
 		// Instances
         this.m_pStorage.pInstances = new Array(_pStorage.pInstances.length);
+        this.m_creationOrder = new Array();
         for (var i = 0; i < _pStorage.pInstances.length; i++) 
         {
             var sourceInstance = _pStorage.pInstances[i];
@@ -304,8 +310,10 @@ yyRoom.prototype.CloneStorage = function (_pStorage) {
                     pCode: sourceInstance.pCode,
                     pPreCreateCode: sourceInstance.pPreCreateCode
                 };
+
+                this.m_creationOrder.push(this.m_pStorage.pInstances[i]);
             }
-        }        
+        }
 
 		// Layers
         this.m_pStorage.layers = new Array( _pStorage.layers.length );
@@ -560,6 +568,50 @@ yyRoom.prototype.CreateRoomFromStorage = function (_pRoomStorage)
 	        g_pLayerManager.BuildRoomLayers(this,_pRoomStorage.layers);
 	    }
 	}
+
+	/* The first room written by the asset compiler includes a 'creationOrderIds' property
+	 * which defines the creation order of any room instances *and* UI layer instances, after
+	 * the first room has been constructed we stop using it since the UI layer instances have
+	 * already been created.
+	*/
+	if(!g_DoneFirstRoomCreation && _pRoomStorage.creationOrderIds !== undefined)
+	{
+		for(var i = 0; i < _pRoomStorage.creationOrderIds.length; ++i)
+		{
+			var found_in_room = false;
+
+			/* Find the correct element from m_pStorage.pInstances */
+			for(var j = 0; j < this.m_pStorage.pInstances.length; ++j)
+			{
+				var p = this.m_pStorage.pInstances[j];
+
+				if(p !== undefined && p.id == _pRoomStorage.creationOrderIds[i])
+				{
+					this.m_creationOrder.push(p);
+					found_in_room = true;
+					break;
+				}
+			}
+
+			if(!found_in_room)
+			{
+				/* Didn't find the instance in the room... must be on a UI layer. */
+
+				this.m_creationOrder.push({
+					id: _pRoomStorage.creationOrderIds[i],
+					uiLayer: true,
+				});
+			}
+		}
+	}
+	else{
+		for(var j = 0; j < this.m_pStorage.pInstances.length; ++j)
+		{
+			this.m_creationOrder.push(this.m_pStorage.pInstances[j]);
+		}
+	}
+
+	g_DoneFirstRoomCreation = true;
 };
 
 // #############################################################################################
@@ -596,6 +648,12 @@ yyRoom.prototype.ClearInstances = function (do_delete_events) {
 	for (i = this.m_Active.length - 1; i >= 0; i--)
 	{
 		var inst = this.m_Active.Get(0);
+
+		if(inst.GetOnUILayer())
+		{
+			continue;
+		}
+
 		if (do_delete_events)
 		{
 			inst.PerformEvent( EVENT_CLEAN_UP,0, inst, inst );
@@ -605,7 +663,14 @@ yyRoom.prototype.ClearInstances = function (do_delete_events) {
 
 	for (i = this.m_Deactive.length - 1; i >= 0; i--)
 	{
-		this.DeleteInstance(this.m_Deactive.Get(0));
+		var inst = this.m_Deactive.Get(0);
+
+		if(inst.GetOnUILayer())
+		{
+			continue;
+		}
+
+		this.DeleteInstance(inst);
 	}
 };
 
@@ -618,6 +683,7 @@ yyRoom.prototype.ClearInstances = function (do_delete_events) {
 // #############################################################################################
 yyRoom.prototype.ClearInstancesFromStorage = function () {
     this.m_pStorage.pInstances = [];
+    this.m_creationOrder = [];
 };
 
 yyRoom.prototype.GetView= function(index) {
@@ -3236,7 +3302,7 @@ yyRoom.prototype.HandleSequenceText = function (_rect, _layer, _pSequenceEl, _no
 
 
 
-yyRoom.prototype.DrawRoomLayers = function(_rect){
+yyRoom.prototype.DrawRoomLayers = function(_rect, _gui_mask){
 
     var oldtype = Current_Event_Type;
     var oldnumb = Current_Event_Number;
@@ -3249,7 +3315,7 @@ yyRoom.prototype.DrawRoomLayers = function(_rect){
 	    for (i = pool.length - 1; i >= 0; i--)
 	    {
 	        player =pool[i];
-	        if(player===null || player.m_visible<=0)
+	        if(player===null || player.m_visible<=0 || (player.m_gui_layer & _gui_mask) == 0)
 	        {
 	            continue;
 	        }
@@ -3344,7 +3410,7 @@ yyRoom.prototype.DrawRoomLayers = function(_rect){
 ///				
 ///			 </returns>
 // #############################################################################################
-yyRoom.prototype.DrawTheRoom = function (_rect) {
+yyRoom.prototype.DrawTheRoom = function (_rect, _uiwidth, _uiheight) {
 
 	g_roomExtents = _rect;
     DirtyRoomExtents();
@@ -3357,12 +3423,18 @@ yyRoom.prototype.DrawTheRoom = function (_rect) {
 		Graphics_ClearScreen(ConvertGMColour(0xfff7ffff));
 	}
 
+	var uirect = new YYRECT();
+	uirect.right = _uiwidth;
+	uirect.bottom = _uiheight;
+
+	UILayers_Layout(uirect, eLAYER_GUI_IN_VIEW);
+
 	this.ExecuteDrawEvent(_rect, EVENT_DRAW_BEGIN);
 
     if(this.m_Layers!=null && this.m_Layers.length>0)
     {
         //Drawing as layers
-        this.DrawRoomLayers(_rect);
+        this.DrawRoomLayers(_rect, (eLAYER_NORMAL | eLAYER_GUI_IN_VIEW));
     }
    
     this.ExecuteDrawEvent(_rect, EVENT_DRAW_END);
@@ -3526,7 +3598,12 @@ function ResetLayerShader(shaderid)
 ///
 /// In:		 <param name="r">Rect to "fit" in</param>
 // #############################################################################################
-yyRoom.prototype.ExecuteDrawEvent = function (_rect, _event) {
+yyRoom.prototype.ExecuteDrawEvent = function (_rect, _event, _gui_mask) {
+	if(_gui_mask === undefined)
+	{
+		_gui_mask = eLAYER_NORMAL | eLAYER_GUI_IN_VIEW;
+	}
+
 	var pSprite, pInst, i, pool;
 	
 	Current_Event_Type = _event;
@@ -3542,7 +3619,7 @@ yyRoom.prototype.ExecuteDrawEvent = function (_rect, _event) {
 	    for (i = pool.length - 1; i >= 0; i--)
 	    {
 	        player =pool[i];
-	        if(player==null || player.m_visible==false)
+	        if(player==null || player.m_visible==false || (player.m_gui_layer & _gui_mask) == 0)
 	        {
 	            continue;
 	        }
@@ -3756,31 +3833,42 @@ yyRoom.prototype.DrawViews = function (r) {
 			        g_pCurrentView.WorldViewScaleX = g_pCurrentView.scaledportw / g_pCurrentView.worldw;
 			        g_pCurrentView.WorldViewScaleY = g_pCurrentView.scaledporth / g_pCurrentView.worldh;
 
+					var view_width;
+					var view_height;
 
 			        //view port in app surface...
 			        if (g_pCurrentView.surface_id != -1)
 			        {
 			            //fill surface with view
 			            Graphics_SetViewPort(0, 0, surface_get_width(g_pCurrentView.surface_id), surface_get_height(g_pCurrentView.surface_id) );
+
+						view_width = surface_get_width(g_pCurrentView.surface_id);
+						view_height = surface_get_height(g_pCurrentView.surface_id);
 			        }
 			        else
 			        {
                         // This appears to be overriding the application surface dimensions and view port
 			        	Graphics_SetViewPort( g_pCurrentView.portx * sx, g_pCurrentView.porty * sy,
                                               g_pCurrentView.portw * sx, g_pCurrentView.porth * sy );
+
+						view_width = g_pCurrentView.scaledportw;
+						view_height = g_pCurrentView.scaledporth;
                     }
 
 					g_pCameraManager.SetActiveCamera(g_pCurrentView.cameraID);
 					var pCam = g_pCameraManager.GetActiveCamera();
 					if(pCam!=null)
 					{
-						pCam.Begin();						
-						pCam.ApplyMatrices();												
+						pCam.Begin();
+						pCam.ApplyMatrices();
+
+						view_width = pCam.GetViewWidth();
+						view_height = pCam.GetViewHeight();
 		            }
 
                     
 					g_pBuiltIn.view_current = i;
-					this.DrawTheRoom(g_roomExtents);
+					this.DrawTheRoom(g_roomExtents, view_width, view_height);
 
 
 			        if (g_pCurrentView.surface_id != -1) {
@@ -3925,8 +4013,13 @@ yyRoom.prototype.DrawGUI = function (r) {
         g_roomExtents.right=gui_width;
         g_roomExtents.bottom=gui_height;
 
+		UILayers_Layout(g_roomExtents, eLAYER_GUI_IN_GUI);
+
+	    this.ExecuteDrawEvent(r, EVENT_DRAW_BEGIN, eLAYER_GUI_IN_GUI);
 	    this.ExecuteDrawEvent(r, EVENT_DRAW_GUI_BEGIN);
+		this.DrawRoomLayers(r, eLAYER_GUI_IN_GUI);
 	    this.ExecuteDrawEvent(r, EVENT_DRAW_GUI);
+		this.ExecuteDrawEvent(r, EVENT_DRAW_END, eLAYER_GUI_IN_GUI);
 	    this.ExecuteDrawEvent(r, EVENT_DRAW_GUI_END);
 	    g_InGUI_Zone = false;
         g_roomExtents.Copy(roomExtents);

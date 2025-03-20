@@ -20,6 +20,9 @@ YYLayerType_Tile=4,
 YYLayerType_Particle=5,
 YYLayerType_Effect=6;
 
+var eLAYER_NORMAL = 1;
+var eLAYER_GUI_IN_VIEW = 2;
+var eLAYER_GUI_IN_GUI = 4;
 
 var	eLayerElementType_Undefined = 0,
 	eLayerElementType_Background=1,
@@ -49,6 +52,8 @@ var TileScaleRot_ShiftedMask = 0x7;
 var TileIndex_Shift = 0;
 var TileIndex_Mask = (0x7ffff << TileIndex_Shift);
 var TileIndex_ShiftedMask = (0x7ffff);
+
+var g_TransitioningUILayers = [];
 
 /** @constructor */
 function CBackGM2()
@@ -93,6 +98,7 @@ this.m_effectToBeEnabled = true;
 this.m_effect = null; // yyEffectInstanceRef
 this.m_pInitialEffectInfo = null;
 this.m_effectPS = -1;
+this.m_gui_layer = eLAYER_NORMAL;
 };
 
 CLayer.prototype.SetEffect = function(_effect)
@@ -120,6 +126,10 @@ CLayer.prototype.GetInitialEffectInfo = function()
     return this.m_pInitialEffectInfo;
 };
 
+CLayer.prototype.IsUILayer = function()
+{
+    return this.m_gui_layer != eLAYER_NORMAL;
+};
 
 /** @constructor */
 function YYRoomLayer()
@@ -1058,9 +1068,8 @@ LayerManager.prototype.AddInstance= function (_room,_inst)
 
 LayerManager.prototype.AddInstanceToLayer= function(_room,_layer,_inst)
 {
-
     if(_room == null || _layer==null || _inst===null)
-        return;
+        return undefined;
    
     if(_inst.GetOnActiveLayer() === false)
     {
@@ -1071,8 +1080,10 @@ LayerManager.prototype.AddInstanceToLayer= function(_room,_layer,_inst)
         _inst.SetOnActiveLayer(true);
         NewInstanceElement.m_bRuntimeDataInitialised = true;
         
-        g_pLayerManager.AddNewElement(_room, _layer, NewInstanceElement, false);
+        return g_pLayerManager.AddNewElement(_room, _layer, NewInstanceElement, false);
     }
+
+    return undefined;
 };
 
 LayerManager.prototype.RemoveInstance = function (_room, _inst) {
@@ -1203,16 +1214,20 @@ LayerManager.prototype.RemoveStorageInstanceFromLayer = function (_room, _layer,
     }
 };
 
-LayerManager.prototype.AddLayer = function(_room, _depth, _name)
+LayerManager.prototype.AddLayer = function(_room, _depth, _name, _type)
 {
     if (_room == null)
         return null;
+
+    if (_type === undefined)
+        _type = eLAYER_NORMAL;
 
     var NewLayer = new CLayer();
     NewLayer.m_id = this.GetNextLayerID();
     NewLayer.depth = _depth;
     NewLayer.m_pName = _name;
-    NewLayer.m_dynamic = false;    
+    NewLayer.m_dynamic = false;
+    NewLayer.m_gui_layer = _type;
 
     _room.m_Layers.Add(NewLayer);
 
@@ -1679,7 +1694,49 @@ LayerManager.prototype.CleanRoomLayers = function(_room)
             continue;
         }
 
-        this.RemoveLayer(_room, pLayer.m_id, false);        
+        if(pLayer.IsUILayer())
+        {
+            /* Stash the layer to be injected into the next room by StartRoom(). */
+
+            _room.m_Layers.Delete(pLayer);
+            g_TransitioningUILayers.push(pLayer);
+        }
+        else{
+            this.RemoveLayer(_room, pLayer.m_id, false);
+        }
+    }
+};
+
+LayerManager.prototype.RestoreUILayers = function(_room)
+{
+    while(g_TransitioningUILayers.length > 0)
+    {
+        var layer = g_TransitioningUILayers.pop();
+
+        _room.m_Layers.Add(layer);
+
+        /* Insert all elements (assets/instances/etc) on the UI layer into the room's lookup tables. */
+        for(var i = 0; i < layer.m_elements.length; i++)
+        {
+            var element = layer.m_elements.Get(i);
+            if (element == null)
+                continue;
+
+            if (element.m_type == eLayerElementType_Instance)
+            {
+                if(element.m_pInstance.active)
+                {
+                    _room.m_Active.Add(element.m_pInstance);
+                }
+                else{
+                    this.m_Deactive.Add(element.m_pInstance);
+                }
+            }
+            else if (element.m_type == eLayerElementType_Sequence)
+            {
+                _room.AddSeqInstance(element.m_id);
+            }
+        }
     }
 };
 

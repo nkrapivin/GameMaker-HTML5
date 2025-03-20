@@ -89,6 +89,17 @@ YYRECT.prototype.Copy = function (_bbox) {
 	this.bottom = _bbox.bottom;
 };
 
+YYRECT.prototype.Intersection = function(r1, r2)
+{
+	var r = new YYRECT();
+
+	r.left = Math.max(r1.left, r2.left),
+	r.top = Math.max(r1.top, r2.top),
+	r.right = Math.min(r1.right, r2.right),
+	r.bottom = Math.min(r1.bottom, r2.bottom)
+
+	return r;
+}
 
 // @if feature("sprites")
 // #############################################################################################

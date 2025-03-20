@@ -1327,6 +1327,9 @@ function StartRoom( _numb, _starting )
 	g_pBuiltIn.room = g_RunRoom.id;	
 	SetCanvasSize();
 
+	g_pLayerManager.RestoreUILayers(g_RunRoom);
+	UILayers_Create();
+
     //initialise view scaledport properties- mouse_x/y will return NaN until first draw otherwise
 	var sx = g_AppSurfaceRect.w / (g_roomExtents.right - g_roomExtents.left);
 	var sy = g_AppSurfaceRect.h / (g_roomExtents.bottom - g_roomExtents.top);
@@ -1399,28 +1402,38 @@ function StartRoom( _numb, _starting )
             }
         }        
         
-        var pInstStorage = g_RunRoom.m_pStorage.pInstances;
-        for(var l=0; l < g_RunRoom.m_pStorage.pInstances.length; l++)
+        for(var l=0; l < g_RunRoom.m_creationOrder.length; l++)
         {
-            var pIStore = g_RunRoom.m_pStorage.pInstances[l];
+            var pIStore = g_RunRoom.m_creationOrder[l];
             var pInstance = g_pInstanceManager.Get(pIStore.id);
             if (pInstance && (pInstance.createdone == false)) {
             
-            	pInstance.createdone = true;    	
-            	
+            	pInstance.createdone = true;
+
+            	var pCode = pIStore.pCode;
+            	var pPreCreateCode = pIStore.pPreCreateCode;
+
+            	if(pIStore.uiLayer)
+            	{
+            		var ui_element = g_UILayerInstanceElementsFromWAD[ pIStore.id ];
+
+            		pCode = ui_element.instanceCreate;
+            		pPreCreateCode = ui_element.instancePreCreate;
+            	}
+
             	if(!g_CreateEventOrderSwap && !g_isZeus) {
             	
-            		if (pIStore.pCode) pIStore.pCode(pInstance, pInstance);
+            		if (pCode) pCode(pInstance, pInstance);
             		pInstance.PerformEvent(EVENT_PRE_CREATE, 0, pInstance, pInstance);
-            		if (pIStore.pPreCreateCode) pIStore.pPreCreateCode(pInstance, pInstance);
+            		if (pPreCreateCode) pPreCreateCode(pInstance, pInstance);
             		pInstance.PerformEvent(EVENT_CREATE, 0, pInstance, pInstance);
             	} 
             	else {
             	
             		pInstance.PerformEvent(EVENT_PRE_CREATE, 0, pInstance, pInstance);
-            		if (pIStore.pPreCreateCode) pIStore.pPreCreateCode(pInstance, pInstance);
+            		if (pPreCreateCode) pPreCreateCode(pInstance, pInstance);
             		pInstance.PerformEvent(EVENT_CREATE, 0, pInstance, pInstance);
-            		if (pIStore.pCode) pIStore.pCode(pInstance, pInstance);
+            		if (pCode) pCode(pInstance, pInstance);
             	}
             }
         }
