@@ -2052,10 +2052,24 @@ yyInstance.prototype.Collision_Line = function (_x1, _y1, _x2, _y2, _prec) {
 
 	// easy cases first    
 	var i_bbox = this.bbox;
-	if (yymin(_x1, _x2) >= i_bbox.right + 1) { return false; }
-	if (yymax(_x1, _x2) < i_bbox.left) { return false; }
-	if (yymin(_y1, _y2) >= i_bbox.bottom + 1) { return false; }
-	if (yymax(_y1, _y2) < i_bbox.top) { return false; }
+	var Result = false;
+	var col_delta = -0.00001; //To avoid floating point inaccuracies
+	if (g_Collision_Compatibility_Mode)
+	{
+		col_delta = 1.0; //or in compat mode to go back to how it was
+		if (yymin(_x1, _x2) >= i_bbox.right + col_delta) return Result;
+		if (yymax(_x1, _x2) < i_bbox.left) return Result;
+		if (yymin(_y1, _y2) >= i_bbox.bottom + col_delta) return Result;
+		if (yymax(_y1, _y2) < i_bbox.top) return Result;
+	}
+	else
+	{
+		if (yymin(_x1, _x2) >= i_bbox.right) return Result;
+		if (yymax(_x1, _x2) < i_bbox.left) return Result;
+		if (yymin(_y1, _y2) >= i_bbox.bottom) return Result;
+		if (yymax(_y1, _y2) < i_bbox.top) return Result;
+	}
+
 
 	// now check whether we intersect the bounding box
 	// make sure line runs from left to right
@@ -2078,16 +2092,22 @@ yyInstance.prototype.Collision_Line = function (_x1, _y1, _x2, _y2, _prec) {
 	}
 
 	// shift right end point
-	if (_x2 > (i_bbox.right + 1))
+	if (_x2 > (i_bbox.right +col_delta))
 	{
-		_y2 = _y2 + (i_bbox.right + 1 - _x2) * (_y2 - _y1) / (_x2 - _x1);   // x2 cannot be x1
-		_x2 = i_bbox.right + 1;
+		_y2 = _y2 + (i_bbox.right +col_delta - _x2) * (_y2 - _y1) / (_x2 - _x1);   // x2 cannot be x1
+		_x2 = i_bbox.right +col_delta;
 	}
 
 	// check whether part lies outside
 	if ((_y1 < i_bbox.top) && (_y2 < i_bbox.top)) { return false; }
-	if ((_y1 >= i_bbox.bottom + 1) && (_y2 >= i_bbox.bottom + 1)) { return false; }
-
+	if (g_Collision_Compatibility_Mode)
+	{
+		if ((_y1 >= i_bbox.bottom + col_delta) && (_y2 >= i_bbox.bottom + col_delta)) return Result;
+	}
+	else
+	{
+		if ((_y1 > i_bbox.bottom ) && (_y2 > i_bbox.bottom)) return Result;
+	}
 	// @if feature("sprites")
 		var pSpr;
 	    if (this.mask_index < 0) {

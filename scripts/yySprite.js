@@ -2726,9 +2726,10 @@ yySprite.prototype.PreciseCollisionLine = function (_img1, _bb1, _x1, _y1, _scal
 		{
 			var xx = Math.floor((cc * (i - _x1) + ss * (_yl + (i - _xl) * dd - _y1)) / _scalex + this.xOrigin);
 			var yy = Math.floor((cc * (_yl + (i - _xl) * dd - _y1) - ss * (i - _x1)) / _scaley + this.yOrigin);
-			if ((xx < 0) || (xx >= this.width)) continue;
-			if ((yy < 0) || (yy >= this.height)) continue;
-			if (this.colmask[_img1][xx + (yy * this.width)]) return true;
+
+
+			if(this.ColMaskSet(xx,  yy,this.colmask[_img1]))
+				return true;
 		}
 	}
 	else
@@ -2751,9 +2752,9 @@ yySprite.prototype.PreciseCollisionLine = function (_img1, _bb1, _x1, _y1, _scal
 		{
 			var xx = Math.floor((cc * (_xl + (i - _yl) * dd - _x1) + ss * (i - _y1)) / _scalex + this.xOrigin);
 			var yy = Math.floor((cc * (i - _y1) - ss * (_xl + (i - _yl) * dd - _x1)) / _scaley + this.yOrigin);
-			if ((xx < 0) || (xx >= this.width)) continue;
-			if ((yy < 0) || (yy >= this.height)) continue;
-			if (this.colmask[_img1][xx + (yy * this.width)]) return true;
+
+			if(this.ColMaskSet(xx,  yy,this.colmask[_img1]))
+				return true;
 		}
 	}
 
