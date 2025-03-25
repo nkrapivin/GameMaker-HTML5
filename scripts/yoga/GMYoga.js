@@ -1688,10 +1688,15 @@ UILayerSequenceElement.prototype.create_element = function(target_layer)
 
 	if(this.sequenceName !== undefined)
 	{
-		NewSprite.m_name = this.sequenceName;
+		NewSequence.m_name = this.sequenceName;
 	}
 
-	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target, NewSequence, true);
+	if (this.stretchWidth || this.stretchHeight)
+	{
+		NewSequence.m_angle = 0.0;
+	}
+
+	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target_layer, NewSequence, true);
 };
 
 UILayerSequenceElement.prototype.position = function(container, clipping_rect, set_clipping_rect)
@@ -1703,17 +1708,51 @@ UILayerSequenceElement.prototype.position = function(container, clipping_rect, s
 
 		element.m_x = translated_position[0];
 		element.m_y = translated_position[1];
-		element.m_scaleX = this.sequenceScaleX;
-		element.m_scaleY = this.sequenceScaleY;
 
-		// TODO: Stretch
+		var sequence = g_pSequenceManager.GetSequenceFromID(this.sequenceIndex);
+
+		if(sequence !== undefined && sequence.m_width !== undefined && sequence.m_height !== undefined)
+		{
+			/* Size of the sequence with no scaling applied. */
+			var base_size = [
+				sequence.m_width,
+				sequence.m_height,
+			];
+
+			/* Size of the sequence with scaling from the flexpanel element properties applied. */
+			var scaled_base_size = [
+				(base_size[0] * this.sequenceScaleX),
+				(base_size[1] * this.sequenceScaleY),
+			];
+
+			/* Size of the flexpanel to fit within. */
+			var container_size = [
+				(container.right - container.left),
+				(container.bottom - container.top),
+			];
+
+			/* Calculate the desired width/height of the sequence. */
+			var stretched_size = UILayers_stretch_element(scaled_base_size, container_size, this.stretchWidth, this.stretchHeight, this.keepAspect);
+
+			/* Derive the scales to get the sequence to the desired size. */
+			element.m_scaleX = stretched_size[0] / base_size[0];
+			element.m_scaleY = stretched_size[1] / base_size[1];
+		}
+
 		// TODO: Clipping
 	}
 };
 
 UILayerSequenceElement.prototype.measure_item = function(node, max_width, max_height)
 {
-	// TODO
+	var sequence = g_pSequenceManager.GetSequenceFromID(this.sequenceIndex);
+
+	if(sequence !== undefined && sequence.m_width !== undefined && sequence.m_height !== undefined)
+	{
+		/* Sequence width/height (at t=0) is calculated by the IDE for us. */
+		return { width: sequence.m_width, height: sequence.m_height };
+	}
+
 	return { width: 0.0, height: 0.0 };
 };
 

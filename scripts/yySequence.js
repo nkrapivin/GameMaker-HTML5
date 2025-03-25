@@ -3896,6 +3896,8 @@ function yySequence(_pStorage) {
     this.m_volume = 1.0;
     this.m_xorigin = 0;
     this.m_yorigin = 0;
+    this.m_width = undefined;
+    this.m_height = undefined;
     this.m_messageEventKeyframeStore = new yyKeyframeStore();
     this.m_messageEventKeyframeStore.numKeyframes = 0;
     this.m_messageEventKeyframeStore.keyframes = [];
@@ -3925,6 +3927,8 @@ function yySequence(_pStorage) {
         this.m_volume = _pStorage.volume;
         this.m_xorigin = _pStorage.xorigin;
         this.m_yorigin = _pStorage.yorigin;
+        this.m_width = _pStorage.width;
+        this.m_height = _pStorage.height;
 
         // Create Message Event Keyframe Store and Keys
         this.m_messageEventKeyframeStore = new yyKeyframeStore();
