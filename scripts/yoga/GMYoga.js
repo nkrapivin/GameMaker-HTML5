@@ -1161,6 +1161,7 @@ function UILayers_Create()
 
 		var node = flexpanel_create_node(layer_data);
 		var layer = g_pLayerManager.AddLayer(g_RunRoom, i, flexpanel_node_get_name(node), layer_type);
+		layer.m_visible = layer_data.visible;
 
 		g_UILayers.push({
 			node: node,
@@ -1688,10 +1689,15 @@ UILayerSequenceElement.prototype.create_element = function(target_layer)
 
 	if(this.sequenceName !== undefined)
 	{
-		NewSprite.m_name = this.sequenceName;
+		NewSequence.m_name = this.sequenceName;
 	}
 
-	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target, NewSequence, true);
+	if (this.stretchWidth || this.stretchHeight)
+	{
+		NewSequence.m_angle = 0.0;
+	}
+
+	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target_layer, NewSequence, true);
 };
 
 UILayerSequenceElement.prototype.position = function(container, clipping_rect, set_clipping_rect)
@@ -1703,17 +1709,51 @@ UILayerSequenceElement.prototype.position = function(container, clipping_rect, s
 
 		element.m_x = translated_position[0];
 		element.m_y = translated_position[1];
-		element.m_scaleX = this.sequenceScaleX;
-		element.m_scaleY = this.sequenceScaleY;
 
-		// TODO: Stretch
+		var sequence = g_pSequenceManager.GetSequenceFromID(this.sequenceIndex);
+
+		if(sequence !== undefined && sequence.m_width !== undefined && sequence.m_height !== undefined)
+		{
+			/* Size of the sequence with no scaling applied. */
+			var base_size = [
+				sequence.m_width,
+				sequence.m_height,
+			];
+
+			/* Size of the sequence with scaling from the flexpanel element properties applied. */
+			var scaled_base_size = [
+				(base_size[0] * this.sequenceScaleX),
+				(base_size[1] * this.sequenceScaleY),
+			];
+
+			/* Size of the flexpanel to fit within. */
+			var container_size = [
+				(container.right - container.left),
+				(container.bottom - container.top),
+			];
+
+			/* Calculate the desired width/height of the sequence. */
+			var stretched_size = UILayers_stretch_element(scaled_base_size, container_size, this.stretchWidth, this.stretchHeight, this.keepAspect);
+
+			/* Derive the scales to get the sequence to the desired size. */
+			element.m_scaleX = stretched_size[0] / base_size[0];
+			element.m_scaleY = stretched_size[1] / base_size[1];
+		}
+
 		// TODO: Clipping
 	}
 };
 
 UILayerSequenceElement.prototype.measure_item = function(node, max_width, max_height)
 {
-	// TODO
+	var sequence = g_pSequenceManager.GetSequenceFromID(this.sequenceIndex);
+
+	if(sequence !== undefined && sequence.m_width !== undefined && sequence.m_height !== undefined)
+	{
+		/* Sequence width/height (at t=0) is calculated by the IDE for us. */
+		return { width: sequence.m_width, height: sequence.m_height };
+	}
+
 	return { width: 0.0, height: 0.0 };
 };
 
@@ -1950,22 +1990,171 @@ UILayerTextElement.prototype.position = function(container, clipping_rect, set_c
 	}
 
 	var element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id);
-	if(element !== null)
+	var font = g_pFontManager.Get(this.textFontIndex);
+
+	if(element !== null && font !== null)
 	{
 		var translated_position = UILayers_translate_element_position(container, this.textOffsetX, this.textOffsetY, this.flexAnchor);
 
 		element.m_x = translated_position[0];
 		element.m_y = translated_position[1];
+
 		element.m_scaleX = this.textScaleX;
 		element.m_scaleY = this.textScaleY;
 
-		// TODO: Stretch
+		if(!(element.m_wrap) && (this.stretchWidth || this.stretchHeight))
+		{
+			var base_text_size = this._calc_base_text_size(element, font, (container.right - container.left));
+
+			/* Size of the text with scaling from the flexpanel element properties applied. */
+			var scaled_text_size = [
+				(base_text_size.width * this.textScaleX),
+				(base_text_size.height * this.textScaleY),
+			];
+
+			/* Size of the flexpanel to fit within. */
+			var container_size = [
+				(container.right - container.left),
+				(container.bottom - container.top),
+			];
+
+			/* Calculate the desired width/height of the text. */
+			var stretched_size = UILayers_stretch_element(scaled_text_size, container_size, this.stretchWidth, this.stretchHeight, this.keepAspect);
+
+			if (this.stretchWidth || this.keepAspect)
+			{
+				element.m_scaleX = stretched_size[0] / base_text_size.width;
+			}
+
+			if (this.stretchHeight || this.keepAspect)
+			{
+				element.m_scaleY = (stretched_size[1] * this.textScaleY) / base_text_size.height;
+			}
+		}
+
+		if(this.stretchWidth)
+		{
+			element.m_frameW = (container.right - container.left) / element.m_scaleX;
+		}
+		else{
+			element.m_frameW = this.textFrameWidth;
+		}
+
+		if(this.stretchHeight)
+		{
+			element.m_frameH = (container.bottom - container.top) / element.m_scaleY;
+		}
+		else{
+			element.m_frameH = this.textFrameHeight;
+		}
+
 		// TODO: Clipping
 	}
 };
 
 UILayerTextElement.prototype.measure_item = function(node, max_width, max_height)
 {
-	// TODO
-	return { width: 100, height: 50 };
+	if(this.m_element_id === undefined)
+	{
+		/* Element hasn't been created yet. */
+		return { width: 0, height: 0 };
+	}
+
+	var element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id);
+	var font = g_pFontManager.Get(this.textFontIndex);
+
+	if(element === null || font === null)
+	{
+		return { width: 0, height: 0 };
+	}
+
+	var size = this._calc_base_text_size(element, font, max_width);
+
+	/* When stretch and keep aspect is enabled, we allow the text to grow to fit a fixed-size
+	 * container in one dimension and then grow the other (auto sized) dimension to fit via the
+	 * measure function...
+	 *
+	 * This logic is copied from RoomItemHelper.MeasureItemSize() in the IDE.
+	*/
+
+	if ((!element.m_wrap) && this.keepAspect && (this.stretchWidth || this.stretchHeight))
+	{
+		var node_width = node.GetWidth();
+		var node_height = node.GetHeight();
+
+		var autoW = node_width.unit == YGUnitAuto;
+		var autoH = node_height.unit == YGUnitAuto;
+		var parentW = (autoW) ? size.width : max_width; //parent width = item width, when auto sized
+		var parentH = (autoH) ? size.height : max_height;
+		var contentAspect = size.width / size.height;
+		var adjustHeight = true;
+		if (autoW && autoH)
+		{
+			var parentAspect = parentW / parentH; //parent size = item size in both dimensions
+			adjustHeight = (contentAspect > parentAspect);
+		}
+		else if (autoW)
+		{
+			size.width = Math.abs(max_height * contentAspect); //we cannot adjust fixed height
+		}
+		else if (autoH)
+		{
+			size.height = Math.abs(max_width / contentAspect); //we cannot adjust fixed width
+		}
+
+		if (adjustHeight)
+			size.height = Math.abs(parentW / contentAspect);
+		else
+			size.width = Math.abs(parentH * contentAspect);
+	}
+
+	return size;
+};
+
+UILayerTextElement.prototype._calc_base_text_size = function(element, font, max_container_width)
+{
+	var old_font = g_pFontManager.fontid;
+	g_pFontManager.fontid = this.textFontIndex;
+
+	/* The "linesep" parameter to yyFontManager.GR_Text_Sizes() is actually the pitch
+	 * (i.e. height + line spacing) to add for each line after the first line, so we need to
+	 * grab the font and copy what it does to calculate that correctly.
+	*/
+	var linesep = font.TextHeight("M") + element.m_lineSpacing;
+	var computed_width;
+	var computed_height;
+
+	if (element.m_wrap && this.stretchWidth)
+	{
+		/* Wrapped text, stretched to flexpanel width.
+		 * Element size is the extent of the text wrapped within the maximum available panel size.
+		*/
+
+		g_pFontManager.GR_Text_Sizes(element.m_text, -1, -1, linesep, max_container_width);
+		computed_width = g_ActualTextWidth;
+		computed_height = g_ActualTextHeight;
+	}
+	else if (element.m_wrap)
+	{
+		/* Wrapped text.
+		 * Element size is the extent of the text wrapped within the defined frame width.
+		*/
+
+		g_pFontManager.GR_Text_Sizes(element.m_text, -1, -1, linesep, element.m_frameW);
+		computed_width = g_ActualTextWidth;
+		computed_height = g_ActualTextHeight;
+	}
+	else {
+		/* Non-wrapped text.
+		 * Element size is the extent of the text.
+		*/
+
+		g_pFontManager.GR_Text_Sizes(element.m_text, -1, -1, linesep, -1);
+		computed_width = g_ActualTextWidth * this.textScaleX;
+		computed_height = g_ActualTextHeight * this.textScaleY;
+	}
+
+	g_pFontManager.fontid = old_font;
+
+	return { width: computed_width, height: computed_height };
 };
