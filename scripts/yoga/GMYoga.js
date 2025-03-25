@@ -1371,6 +1371,51 @@ function UILayers_Layout_node_position(node, outer_container, clipping_rect, set
 	}
 }
 
+function UILayers_stretch_element(element_size, container_size, stretch_width, stretch_height, preserve_aspect)
+{
+	var aspect = element_size[0] / element_size[1];
+
+	var stretched_width = element_size[0];
+	var stretched_height = element_size[1];
+
+	if (stretch_width)
+	{
+		stretched_width = container_size[0];
+	}
+
+	if (stretch_height)
+	{
+		stretched_height = container_size[1];
+	}
+
+	if (preserve_aspect)
+	{
+		var corrected_width = stretched_height * aspect;
+		var corrected_height = stretched_width / aspect;
+
+		if (stretch_height && stretch_width)
+		{
+			if (corrected_width < stretched_width)
+			{
+				stretched_width = corrected_width;
+			}
+			else {
+				stretched_height = corrected_height;
+			}
+		}
+		else if(stretch_width)
+		{
+			stretched_height = corrected_height;
+		}
+		else if (stretch_height)
+		{
+			stretched_width = corrected_width;
+		}
+	}
+
+	return [ stretched_width, stretched_height ];
+}
+
 function UILayers_translate_element_position(container, x, y, anchor)
 {
 	var origin_x = 0.0;
@@ -1539,7 +1584,33 @@ UILayerInstanceElement.prototype.position = function(container, clipping_rect, s
 		instance.x = translated_position[0];
 		instance.y = translated_position[1];
 
-		// TODO: Stretch
+		instance.Maybe_Compute_BoundingBox();
+
+		/* Size of the instance with no scaling applied. */
+		var base_size = [
+			((instance.bbox.right - instance.bbox.left) / instance.image_xscale),
+			((instance.bbox.bottom - instance.bbox.top) / instance.image_yscale),
+		];
+
+		/* Size of the instance with scaling from the flexpanel element properties applied. */
+		var stretched_base_size = [
+			(base_size[0] * this.instanceScaleX),
+			(base_size[1] * this.instanceScaleY),
+		];
+
+		/* Size of the flexpanel to fit within. */
+		var container_size = [
+			(container.right - container.left),
+			(container.bottom - container.top),
+		];
+
+		/* Calculate the desired width/height of the instance. */
+		var stretched_size = UILayers_stretch_element(stretched_base_size, container_size, this.stretchWidth, this.stretchHeight, this.keepAspect);
+
+		/* Derive the scales to get the instance to the desired size. */
+		instance.image_xscale = stretched_size[0] / base_size[0];
+		instance.image_yscale = stretched_size[1] / base_size[1];
+
 		// TODO: Clipping
 	}
 };
@@ -1701,6 +1772,11 @@ UILayerSpriteElement.prototype.create_element = function(target_layer)
 		NewSprite.m_name = this.spriteName;
 	}
 
+	if (this.stretchWidth || this.stretchHeight)
+	{
+		NewSprite.m_imageAngle = 0.0;
+	}
+
 	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target_layer, NewSprite, true);
 };
 
@@ -1720,7 +1796,35 @@ UILayerSpriteElement.prototype.position = function(container, clipping_rect, set
 		element.m_x = translated_position[0];
 		element.m_y = translated_position[1];
 
-		// TODO: Stretch
+		var sprite = g_pSpriteManager.Get(element.m_spriteIndex);
+		if(sprite !== null)
+		{
+			/* Size of the sprite with no scaling applied. */
+			var base_size = [
+				sprite.GetWidth(),
+				sprite.GetHeight(),
+			];
+
+			/* Size of the sprite with scaling from the flexpanel element properties applied. */
+			var stretched_base_size = [
+				(base_size[0] * this.spriteScaleX),
+				(base_size[1] * this.spriteScaleY),
+			];
+
+			/* Size of the flexpanel to fit within. */
+			var container_size = [
+				(container.right - container.left),
+				(container.bottom - container.top),
+			];
+
+			/* Calculate the desired width/height of the sprite. */
+			var stretched_size = UILayers_stretch_element(stretched_base_size, container_size, this.stretchWidth, this.stretchHeight, this.keepAspect);
+
+			/* Derive the scales to get the sprite to the desired size. */
+			element.m_imageScaleX = stretched_size[0] / base_size[0];
+			element.m_imageScaleY = stretched_size[1] / base_size[1];
+		}
+
 		// TODO: Tiling
 		// TODO: Clipping
 	}
