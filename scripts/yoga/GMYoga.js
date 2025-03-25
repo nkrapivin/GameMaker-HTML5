@@ -1161,6 +1161,7 @@ function UILayers_Create()
 
 		var node = flexpanel_create_node(layer_data);
 		var layer = g_pLayerManager.AddLayer(g_RunRoom, i, flexpanel_node_get_name(node), layer_type);
+		layer.m_visible = layer_data.visible;
 
 		g_UILayers.push({
 			node: node,
