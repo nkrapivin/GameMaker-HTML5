@@ -701,6 +701,18 @@ function flexpanel_node_get_struct( _node )
     	variable_struct_set(ret, "nodes", nodes);		
 	} // end if
 
+	if(context.elements !== null && context.elements.length > 0)
+	{
+		var layerElements = new Array(context.elements.length);
+
+		for(var i = 0; i < context.elements.length; ++i)
+		{
+			layerElements[i] = context.elements[i].serialise();
+		}
+
+		variable_struct_set(ret, "layerElements", layerElements);
+	}
+
     return ret;
 }
 
@@ -1659,6 +1671,45 @@ UILayerInstanceElement.prototype.measure_item = function(node, max_width, max_he
 	}
 };
 
+UILayerInstanceElement.prototype.serialise = function()
+{
+	var ret = {};
+	ret.__yyIsGMLObject = true;
+
+	variable_struct_set(ret, "type", "Instance");
+
+	variable_struct_set(ret, "elementOrder",        this.elementOrder);
+	variable_struct_set(ret, "instanceObjectIndex", this.instanceObjectIndex);
+	variable_struct_set(ret, "instanceVariables",   this.instanceVariables);
+	variable_struct_set(ret, "instanceOffsetX",     this.instanceOffsetX);
+	variable_struct_set(ret, "instanceOffsetY",     this.instanceOffsetY);
+	variable_struct_set(ret, "instanceScaleX",      this.instanceScaleX);
+	variable_struct_set(ret, "instanceScaleY",      this.instanceScaleY);
+	variable_struct_set(ret, "instanceImageSpeed",  this.instanceImageSpeed);
+	variable_struct_set(ret, "instanceImageIndex",  this.instanceImageIndex);
+	variable_struct_set(ret, "instanceColour",      this.instanceColour);
+	variable_struct_set(ret, "instanceAngle",       this.instanceAngle);
+
+	variable_struct_set(ret, "flexVisible",   this.flexVisible);
+	variable_struct_set(ret, "flexAnchor",    this.flexAnchor);
+	variable_struct_set(ret, "stretchWidth",  this.stretchWidth);
+	variable_struct_set(ret, "stretchHeight", this.stretchHeight);
+	variable_struct_set(ret, "keepAspect",    this.keepAspect);
+
+	var element;
+	if(this.m_element_id !== undefined && (element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id)) !== null)
+	{
+		ret.instanceId = element.m_instanceID;
+	}
+	else{
+		ret.instanceId = -1;
+	}
+
+	ret.elementId = this.m_element_id;
+
+	return ret;
+};
+
 function UILayerSequenceElement(element_data, from_wad)
 {
 	this.elementOrder         = element_data.elementOrder;
@@ -1773,6 +1824,38 @@ UILayerSequenceElement.prototype.measure_item = function(node, max_width, max_he
 	}
 
 	return { width: 0.0, height: 0.0 };
+};
+
+UILayerSequenceElement.prototype.serialise = function()
+{
+	var ret = {};
+	ret.__yyIsGMLObject = true;
+
+	variable_struct_set(ret, "type", "Sequence");
+
+	variable_struct_set(ret, "elementOrder",         this.elementOrder);
+	variable_struct_set(ret, "sequenceIndex",        this.sequenceIndex);
+	variable_struct_set(ret, "sequenceOffsetX",      this.sequenceOffsetX);
+	variable_struct_set(ret, "sequenceOffsetY",      this.sequenceOffsetY);
+	variable_struct_set(ret, "sequenceScaleX",       this.sequenceScaleX);
+	variable_struct_set(ret, "sequenceScaleY",       this.sequenceScaleY);
+	variable_struct_set(ret, "sequenceColour",       this.sequenceColour);
+	variable_struct_set(ret, "sequenceImageSpeed",   this.sequenceImageSpeed);
+	variable_struct_set(ret, "sequenceSpeedType",    this.sequenceSpeedType);
+	variable_struct_set(ret, "sequenceHeadPosition", this.sequenceHeadPosition);
+	variable_struct_set(ret, "sequenceAngle",        this.sequenceAngle);
+
+	variable_struct_set(ret, "flexVisible",    this.flexVisible);
+	variable_struct_set(ret, "flexAnchor",     this.flexAnchor);
+	variable_struct_set(ret, "stretchWidth",   this.stretchWidth);
+	variable_struct_set(ret, "stretchHeight",  this.stretchHeight);
+	variable_struct_set(ret, "tileHorizontal", this.tileHorizontal);
+	variable_struct_set(ret, "tileVertical",   this.tileVertical);
+	variable_struct_set(ret, "keepAspect",     this.keepAspect);
+
+	ret.elementId = this.m_element_id;
+
+	return ret;
 };
 
 function UILayerSpriteElement(element_data, from_wad)
@@ -1934,6 +2017,38 @@ UILayerSpriteElement.prototype.measure_item = function(node, max_width, max_heig
 	else{
 		return { width: 0.0, height: 0.0 };
 	}
+};
+
+UILayerSpriteElement.prototype.serialise = function()
+{
+	var ret = {};
+	ret.__yyIsGMLObject = true;
+
+	variable_struct_set(ret, "type", "Sprite");
+
+	variable_struct_set(ret, "elementOrder",     this.elementOrder);
+	variable_struct_set(ret, "spriteIndex",      this.spriteIndex);
+	variable_struct_set(ret, "spriteOffsetX",    this.spriteOffsetX);
+	variable_struct_set(ret, "spriteOffsetY",    this.spriteOffsetY);
+	variable_struct_set(ret, "spriteScaleX",     this.spriteScaleX);
+	variable_struct_set(ret, "spriteScaleY",     this.spriteScaleY);
+	variable_struct_set(ret, "spriteColour",     this.spriteColour);
+	variable_struct_set(ret, "spriteImageSpeed", this.spriteImageSpeed);
+	variable_struct_set(ret, "spriteSpeedType",  this.spriteSpeedType);
+	variable_struct_set(ret, "spriteImageIndex", this.spriteImageIndex);
+	variable_struct_set(ret, "spriteAngle",      this.spriteAngle);
+
+	variable_struct_set(ret, "flexVisible",    this.flexVisible);
+	variable_struct_set(ret, "flexAnchor",     this.flexAnchor);
+	variable_struct_set(ret, "stretchWidth",   this.stretchWidth);
+	variable_struct_set(ret, "stretchHeight",  this.stretchHeight);
+	variable_struct_set(ret, "tileHorizontal", this.tileHorizontal);
+	variable_struct_set(ret, "tileVertical",   this.tileVertical);
+	variable_struct_set(ret, "keepAspect",     this.keepAspect);
+
+	ret.elementId = this.m_element_id;
+
+	return ret;
 };
 
 function UILayerTextElement(element_data, from_wad)
@@ -2175,4 +2290,40 @@ UILayerTextElement.prototype._calc_base_text_size = function(element, font, max_
 	g_pFontManager.fontid = old_font;
 
 	return { width: computed_width, height: computed_height };
+};
+
+UILayerTextElement.prototype.serialise = function()
+{
+	var ret = {};
+	ret.__yyIsGMLObject = true;
+
+	variable_struct_set(ret, "type", "Text");
+
+	variable_struct_set(ret, "elementOrder",         this.elementOrder);
+	variable_struct_set(ret, "textFontIndex",        this.textFontIndex);
+	variable_struct_set(ret, "textOffsetX",          this.textOffsetX);
+	variable_struct_set(ret, "textOffsetY",          this.textOffsetY);
+	variable_struct_set(ret, "textScaleX",           this.textScaleX);
+	variable_struct_set(ret, "textScaleY",           this.textScaleY);
+	variable_struct_set(ret, "textAngle",            this.textAngle);
+	variable_struct_set(ret, "textColour",           this.textColour);
+	variable_struct_set(ret, "textOriginX",          this.textOriginX);
+	variable_struct_set(ret, "textOriginY",          this.textOriginY);
+	variable_struct_set(ret, "textText",             this.textText);
+	variable_struct_set(ret, "textAlignment",        this.textAlignment);
+	variable_struct_set(ret, "textCharacterSpacing", this.textCharacterSpacing);
+	variable_struct_set(ret, "textLineSpacing",      this.textLineSpacing);
+	variable_struct_set(ret, "textFrameWidth",       this.textFrameWidth);
+	variable_struct_set(ret, "textFrameHeight",      this.textFrameHeight);
+	variable_struct_set(ret, "textWrap",             this.textWrap);
+
+	variable_struct_set(ret, "flexVisible",   this.flexVisible);
+	variable_struct_set(ret, "flexAnchor",    this.flexAnchor);
+	variable_struct_set(ret, "stretchWidth",  this.stretchWidth);
+	variable_struct_set(ret, "stretchHeight", this.stretchHeight);
+	variable_struct_set(ret, "keepAspect",    this.keepAspect);
+
+	ret.elementId = this.m_element_id;
+
+	return ret;
 };
