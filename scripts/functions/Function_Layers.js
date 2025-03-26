@@ -2460,6 +2460,18 @@ function layer_exists( arg1)
     return true;
 };
 
+function layer_get_flexpanel_node(layer_name)
+{
+    var ui_layer = UILayers_Get_By_Name(yyGetString(layer_name));
+    if(ui_layer !== null)
+    {
+        return ui_layer.node;
+    }
+    else{
+        return undefined;
+    }
+}
+
 function layer_script_begin( arg1,arg2) 
 {
     var layer = layerGetFromTargetRoom(arg1);

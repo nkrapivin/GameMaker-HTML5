@@ -1372,6 +1372,24 @@ function UILayers_Layout_node_position(node, outer_container, clipping_rect, set
 	}
 }
 
+function UILayers_Get_By_Name(layer_name)
+{
+	if(g_UILayers === null)
+	{
+		return null;
+	}
+
+	for(var i = 0; i < g_UILayers.length; ++i)
+	{
+		if(g_UILayers[i].layer.m_pName === layer_name)
+		{
+			return g_UILayers[i];
+		}
+	}
+
+	return null;
+}
+
 function UILayers_stretch_element(element_size, container_size, stretch_width, stretch_height, preserve_aspect)
 {
 	var aspect = element_size[0] / element_size[1];
