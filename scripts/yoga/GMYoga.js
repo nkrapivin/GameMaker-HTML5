@@ -472,7 +472,17 @@ function flexpanel_create_node( _struct )
 
 // #######################################################################################
 function flexpanel_delete_node( _node )
-{	
+{
+	var context = FLEXPANEL_GetContext(_node);
+
+	if(context.IsUILayerRoot)
+	{
+		yyError("The root node of a UI layer cannot be deleted");
+		return;
+	}
+
+	// TODO: Delete UI layer elements
+
 	g_yoga["Node"]["destroy"](_node);
 }
 
@@ -1182,6 +1192,10 @@ function UILayers_Create()
 			x_offset: 0.0,
 			y_offset: 0.0,
 		});
+
+		/* Disallow deletion of this node via flexpanel_delete_node(). */
+		var node_context = FLEXPANEL_GetContext(node);
+		node_context.IsUILayerRoot = true;
 
 		UILayers_Create_node_elements(node, layer);
 	}
