@@ -787,12 +787,36 @@ LayerManager.prototype.AddNewElement = function(_room,_layer,_element,_buildRunt
     _element.m_id = this.GetNextElementID();
     _element.m_layer = _layer;
 
+    /* Add first but keep instances first in list... unless on a UI layer.
+     *
+     * Instances are normally kept at the start of the list so the pre/post draw loop can bail
+     * out as soon as it encounters a non-instance rather than iterating over all elements on a
+     * layer, but we want to interleave instance/sprite drawing on UI Layers, so we bypass that
+     * optimisation and instead insert into the list based on the element m_order flag there.
+    */
+
     var insertIndex = 0;
-    if(_element.m_type != eLayerElementType_Instance)
+    for(var elemI = 0; elemI < _layer.m_elements.pool.length; elemI++)
     {
-        for(var elemI = 0; elemI < _layer.m_elements.pool.length; elemI++)
+        var pEl = _layer.m_elements.pool[elemI];
+
+        if(_layer.IsUILayer)
         {
-            var pEl = _layer.m_elements.pool[elemI];
+            /* This is a UI layer. Set insertIndex to the last element with a greater
+             * m_order than the element we are inserting (or the end of the list).
+            */
+
+            if (pEl !== null && pEl.m_order < _element.m_order)
+            {
+                break;
+            }
+            else {
+                insertIndex = elemI;
+            }
+        }
+        else{
+            /* This is a room layer. */
+
             if(pEl == null || pEl.m_type != eLayerElementType_Instance)
             {
                 break;
@@ -1066,7 +1090,7 @@ LayerManager.prototype.AddInstance= function (_room,_inst)
     }
 };
 
-LayerManager.prototype.AddInstanceToLayer= function(_room,_layer,_inst)
+LayerManager.prototype.AddInstanceToLayer= function(_room,_layer,_inst,_order)
 {
     if(_room == null || _layer==null || _inst===null)
         return undefined;
@@ -1079,6 +1103,7 @@ LayerManager.prototype.AddInstanceToLayer= function(_room,_layer,_inst)
         _inst.m_nLayerID = _layer.m_id;
         _inst.SetOnActiveLayer(true);
         NewInstanceElement.m_bRuntimeDataInitialised = true;
+        NewInstanceElement.m_order = _order;
         
         return g_pLayerManager.AddNewElement(_room, _layer, NewInstanceElement, false);
     }

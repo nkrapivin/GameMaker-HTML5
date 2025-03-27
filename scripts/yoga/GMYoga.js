@@ -1605,7 +1605,7 @@ UILayerInstanceElement.prototype.create_element = function(target_layer)
 
 	instance.SetOnUILayer(true);
 
-	this.m_element_id = g_pLayerManager.AddInstanceToLayer(g_RunRoom, target_layer, instance);
+	this.m_element_id = g_pLayerManager.AddInstanceToLayer(g_RunRoom, target_layer, instance, this.elementOrder);
 
 	g_RunRoom.m_Active.Add(instance);
 	g_pInstanceManager.Add(instance);
@@ -1769,6 +1769,7 @@ UILayerSequenceElement.prototype.create_element = function(target_layer)
 	NewSequence.m_angle = this.sequenceAngle;
 	NewSequence.m_imageSpeed = this.sequenceImageSpeed;
 	NewSequence.m_playbackSpeedType = this.sequenceSpeedType;
+	NewSequence.m_order = this.elementOrder;
 
 	if(this.sequenceName !== undefined)
 	{
@@ -1921,6 +1922,7 @@ UILayerSpriteElement.prototype.create_element = function(target_layer)
 	NewSprite.m_imageAngle = this.spriteAngle;
 	NewSprite.m_imageBlend = ConvertGMColour(this.spriteColour & 0xffffff);
 	NewSprite.m_imageAlpha = ((this.spriteColour >> 24)&0xff) / 255.0;
+	NewSprite.m_order = this.elementOrder;
 
 	if(this.spriteName !== undefined)
 	{
@@ -2119,6 +2121,7 @@ UILayerTextElement.prototype.create_element = function(target_layer)
 	NewTextItem.m_frameW = this.textFrameWidth;
 	NewTextItem.m_frameH = this.textFrameHeight;
 	NewTextItem.m_wrap = this.textWrap;
+	NewTextItem.m_order = this.elementOrder;
 
 	if(this.textName !== undefined)
 	{
