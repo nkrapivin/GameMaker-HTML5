@@ -299,31 +299,31 @@ function FLEXPANEL_Init_From_Struct(_node, _struct)
 			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeRight, function( n, v, e ) { n.setMargin(e, v) }, function( n, v, e ) { n.setMarginPercent(e, v) } );
 			break;
 		case "paddingLeft":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeLeft, function( n, v, e ) { n.setPadding(e, v) }, function( n, v ) { n.setPaddingPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeLeft, function( n, v, e ) { n.setPadding(e, v) }, function( n, v, e ) { n.setPaddingPercent(e, v) } );
 			break;
 		case "paddingRight":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeRight, function( n, v, e ) { n.setPadding(e, v) }, function( n, v ) { n.setPaddingPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeRight, function( n, v, e ) { n.setPadding(e, v) }, function( n, v, e ) { n.setPaddingPercent(e, v) } );
 			break;
 		case "paddingTop":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeTop, function( n, v, e ) { n.setPadding(e, v) }, function( n, v ) { n.setPaddingPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeTop, function( n, v, e ) { n.setPadding(e, v) }, function( n, v, e ) { n.setPaddingPercent(e, v) } );
 			break;
 		case "paddingBottom":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeBottom, function( n, v, e ) { n.setPadding(e, v) }, function( n, v ) { n.setPaddingPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeBottom, function( n, v, e ) { n.setPadding(e, v) }, function( n, v, e ) { n.setPaddingPercent(e, v) } );
 			break;
 		case "paddingStart":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeStart, function( n, v, e ) { n.setPadding(e, v) }, function( n, v ) { n.setPaddingPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeStart, function( n, v, e ) { n.setPadding(e, v) }, function( n, v, e ) { n.setPaddingPercent(e, v) } );
 			break;
 		case "paddingEnd":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeEnd, function( n, v, e ) { n.setPadding(e, v) }, function( n, v ) { n.setPaddingPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeEnd, function( n, v, e ) { n.setPadding(e, v) }, function( n, v, e ) { n.setPaddingPercent(e, v) } );
 			break;
 		case "paddingHorizontal":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeHorizontal, function( n, v, e ) { n.setPadding(e, v) }, function( n, v ) { n.setPaddingPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeHorizontal, function( n, v, e ) { n.setPadding(e, v) }, function( n, v, e ) { n.setPaddingPercent(e, v) } );
 			break;
 		case "paddingVertical":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeVertical, function( n, v, e ) { n.setPadding(e, v) }, function( n, v ) { n.setPaddingPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeVertical, function( n, v, e ) { n.setPadding(e, v) }, function( n, v, e ) { n.setPaddingPercent(e, v) } );
 			break;
 		case "padding":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeAll, function( n, v, e ) { n.setPadding(e, v) }, function( n, v ) { n.setPaddingPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeAll, function( n, v, e ) { n.setPadding(e, v) }, function( n, v, e ) { n.setPaddingPercent(e, v) } );
 			break;
 		case "borderLeft":
 			_node.setBorder( YGEdgeLeft, yyGetReal(value));
@@ -354,28 +354,28 @@ function FLEXPANEL_Init_From_Struct(_node, _struct)
 			_node.setBorder( YGEdgeAll, yyGetReal(value));
 			break;
 		case "left":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeLeft, function( n, v, e ) { n.setPosition(e, v) }, function( n, v ) { n.setPositionPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeLeft, function( n, v, e ) { n.setPosition(e, v) }, function( n, v, e ) { n.setPositionPercent(e, v) } );
 			break;
 		case "right":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeRight, function( n, v, e ) { n.setPosition(e, v) }, function( n, v ) { n.setPositionPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeRight, function( n, v, e ) { n.setPosition(e, v) }, function( n, v, e ) { n.setPositionPercent(e, v) } );
 			break;
 		case "top":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeTop, function( n, v, e ) { n.setPosition(e, v) }, function( n, v ) { n.setPositionPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeTop, function( n, v, e ) { n.setPosition(e, v) }, function( n, v, e ) { n.setPositionPercent(e, v) } );
 			break;
 		case "bottom":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeBottom, function( n, v, e ) { n.setPosition(e, v) }, function( n, v ) { n.setPositionPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeBottom, function( n, v, e ) { n.setPosition(e, v) }, function( n, v, e ) { n.setPositionPercent(e, v) } );
 			break;
 		case "start":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeStart, function( n, v, e ) { n.setPosition(e, v) }, function( n, v ) { n.setPositionPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeStart, function( n, v, e ) { n.setPosition(e, v) }, function( n, v, e ) { n.setPositionPercent(e, v) } );
 			break;
 		case "end":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeEnd, function( n, v, e ) { n.setPosition(e, v) }, function( n, v ) { n.setPositionPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeEnd, function( n, v, e ) { n.setPosition(e, v) }, function( n, v, e ) { n.setPositionPercent(e, v) } );
 			break;
 		case "horizontal":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeHorizontal, function( n, v, e ) { n.setPosition(e, v) }, function( n, v ) { n.setPositionPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeHorizontal, function( n, v, e ) { n.setPosition(e, v) }, function( n, v, e ) { n.setPositionPercent(e, v) } );
 			break;
 		case "vertical":
-			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeVetical, function( n, v, e ) { n.setPosition(e, v) }, function( n, v ) { n.setPositionPercent(e, v) } );
+			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeVetical, function( n, v, e ) { n.setPosition(e, v) }, function( n, v, e ) { n.setPositionPercent(e, v) } );
 			break;
 		case "position":
 		case "positionType":
