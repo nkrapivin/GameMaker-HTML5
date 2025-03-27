@@ -178,8 +178,17 @@ function FLEXPANEL_CreateContext(_node)
 	g_contextYoga.set( _node["M"]["O"], {} );
 }
 
+function FLEXPANEL_AreNodeRefsEqual(_node1, _node2)
+{
+	/* Yoga seems to give us distinct Node wrappers for the same underlying YGNode, so we can't
+	 * just compare node references for equality.
+	*/
+
+	return _node1["M"]["O"] == _node2["M"]["O"];
+}
+
 // #######################################################################################
-function FLEXPANEL_Init_From_Struct(_node, _struct)
+function FLEXPANEL_Init_From_Struct(_node, _struct, _from_wad)
 {
 	var context = FLEXPANEL_GetContext(_node);
 
@@ -210,7 +219,7 @@ function FLEXPANEL_Init_From_Struct(_node, _struct)
 				FLEXPANEL_CreateContext( child );
 				_node.insertChild( child, n );
 
-				FLEXPANEL_Init_From_Struct( child, value[n] );
+				FLEXPANEL_Init_From_Struct( child, value[n], _from_wad );
 
 			} // end for
 			break;
@@ -429,35 +438,39 @@ function FLEXPANEL_Init_From_Struct(_node, _struct)
 				continue;
 			}
 
-			if(element_data.type === "Instance")
+			var element_type = _from_wad
+				? element_data.type
+				: yyGetString(variable_struct_get(element_data, "type"));
+
+			if(element_type === "Instance")
 			{
-				context.elements.push(new UILayerInstanceElement(element_data, true));
+				context.elements.push(new UILayerInstanceElement(element_data, _from_wad));
 			}
-			else if(element_data.type === "Sequence")
+			else if(element_type === "Sequence")
 			{
-				context.elements.push(new UILayerSequenceElement(element_data, true));
+				context.elements.push(new UILayerSequenceElement(element_data, _from_wad));
 			}
-			else if(element_data.type === "Sprite")
+			else if(element_type === "Sprite")
 			{
-				context.elements.push(new UILayerSpriteElement(element_data, true));
+				context.elements.push(new UILayerSpriteElement(element_data, _from_wad));
 			}
-			else if(element_data.type === "Text")
+			else if(element_type === "Text")
 			{
-				context.elements.push(new UILayerTextElement(element_data, true));
+				context.elements.push(new UILayerTextElement(element_data, _from_wad));
 			}
 		}
 	}
 }
 
 // #######################################################################################
-function FLEXPANEL_Handle_Struct( _node, _struct)
+function FLEXPANEL_Handle_Struct( _node, _struct, _from_wad)
 {
 	var s = _struct;
 	if (typeof(_struct) != "object") {
 		s = json_parse(_struct)
 	} // end if
 
-	FLEXPANEL_Init_From_Struct(_node, s );
+	FLEXPANEL_Init_From_Struct(_node, s, _from_wad);
 }
 
 
@@ -466,7 +479,7 @@ function flexpanel_create_node( _struct )
 {	
 	var ret = g_yoga[ "Node" ]["createDefault"]();
 	FLEXPANEL_CreateContext(ret);
-	FLEXPANEL_Handle_Struct( ret, _struct);
+	FLEXPANEL_Handle_Struct( ret, _struct, false );
 	return ret;
 }
 
@@ -488,8 +501,49 @@ function flexpanel_delete_node( _node )
 
 // #######################################################################################
 function flexpanel_node_insert_child( _node, _child, _index)
-{	
+{
 	_node.insertChild( _child, _index );
+
+	/* Walk up the hierarchy to see if we are being inserted into a UI layer. */
+	var root = _node;
+	var depth = 0;
+	for(var p = root; p; p = p.getParent())
+	{
+		if(depth == 0)
+		{
+			depth = UILayers_node_get_max_element_order(p);
+		}
+
+		root = p;
+	}
+
+	var root_context = FLEXPANEL_GetContext(root);
+	if(root_context.IsUILayerRoot)
+	{
+		var child_context = FLEXPANEL_GetContext(_child);
+
+		UILayers_Layout_node_prepare(_node); //Restore the measure function
+
+		/* Fiddle around with the element order to try and get "predictable" draw ordering when
+		 * creating new elements at runtime.
+		*/
+
+		var ourdepth = UILayers_node_get_max_element_order_recursive(_child);
+
+		if(child_context.elements !== undefined)
+		{
+			for(var i = 0; i < child_context.elements.length; ++i)
+			{
+				child_context.elements[i].m_order += depth - ourdepth - 1;
+			}
+		}
+
+		/* Create layer elements (instances, sprites, etc). */
+		var ui_layer = UILayers_Get_By_Node(root);
+		UILayers_Create_node_elements(_child, ui_layer.layer, true);
+
+		// TODO: Update layout from root
+	}
 }
 
 // #######################################################################################
@@ -711,7 +765,7 @@ function flexpanel_node_get_struct( _node )
     	variable_struct_set(ret, "nodes", nodes);		
 	} // end if
 
-	if(context.elements !== null && context.elements.length > 0)
+	if(context.elements !== undefined && context.elements.length > 0)
 	{
 		var layerElements = new Array(context.elements.length);
 
@@ -1181,7 +1235,10 @@ function UILayers_Create()
 			layer_type = eLAYER_GUI_IN_VIEW;
 		}
 
-		var node = flexpanel_create_node(layer_data);
+		var node = g_yoga[ "Node" ]["createDefault"]();
+		FLEXPANEL_CreateContext(node);
+		FLEXPANEL_Handle_Struct(node, layer_data, true);
+
 		var layer = g_pLayerManager.AddLayer(g_RunRoom, i, flexpanel_node_get_name(node), layer_type);
 		layer.m_visible = layer_data.visible;
 
@@ -1197,24 +1254,27 @@ function UILayers_Create()
 		var node_context = FLEXPANEL_GetContext(node);
 		node_context.IsUILayerRoot = true;
 
-		UILayers_Create_node_elements(node, layer);
+		UILayers_Create_node_elements(node, layer, false);
 	}
 }
 
-function UILayers_Create_node_elements(node, layer)
+function UILayers_Create_node_elements(node, layer, run_instance_create_events)
 {
 	var context = FLEXPANEL_GetContext(node);
 
-	for(var i = 0; i < context.elements.length; ++i)
+	if(context.elements !== undefined)
 	{
-		var element = context.elements[i];
-		element.create_element(layer);
+		for(var i = 0; i < context.elements.length; ++i)
+		{
+			var element = context.elements[i];
+			element.create_element(layer, run_instance_create_events);
+		}
 	}
 
 	for(var i = 0; i < node.getChildCount(); ++i)
 	{
 		var child = node.getChild(i);
-		UILayers_Create_node_elements(child, layer);
+		UILayers_Create_node_elements(child, layer, run_instance_create_events);
 	}
 }
 
@@ -1317,12 +1377,15 @@ function UILayers_Layout_measure_node(node, width, widthMode, height, heightMode
 	var max_w = 0.0;
 	var max_h = 0.0;
 
-	for (var i = 0; i < context.elements.length; ++i)
+	if(context.elements !== undefined)
 	{
-		var item_size = context.elements[i].measure_item(this, max_width_constraint, max_height_constraint);
+		for (var i = 0; i < context.elements.length; ++i)
+		{
+			var item_size = context.elements[i].measure_item(this, max_width_constraint, max_height_constraint);
 
-		max_w = Math.max(max_w, item_size.width);
-		max_h = Math.max(max_h, item_size.height);
+			max_w = Math.max(max_w, item_size.width);
+			max_h = Math.max(max_h, item_size.height);
+		}
 	}
 
 	var computed_size = { width: undefined, height: undefined };
@@ -1391,10 +1454,13 @@ function UILayers_Layout_node_position(node, outer_container, clipping_rect, set
 		UILayers_Layout_node_position(child, container, container_clip, set_clipping_rect);
 	}
 
-	for(var i = 0; i < context.elements.length; ++i)
+	if(context.elements !== undefined)
 	{
-		var element = context.elements[i];
-		element.position(container, container_clip, set_clipping_rect);
+		for(var i = 0; i < context.elements.length; ++i)
+		{
+			var element = context.elements[i];
+			element.position(container, container_clip, set_clipping_rect);
+		}
 	}
 }
 
@@ -1414,6 +1480,61 @@ function UILayers_Get_By_Name(layer_name)
 	}
 
 	return null;
+}
+
+function UILayers_Get_By_Node(node)
+{
+	if(g_UILayers === null)
+	{
+		return null;
+	}
+
+	for(var i = 0; i < g_UILayers.length; ++i)
+	{
+		if(FLEXPANEL_AreNodeRefsEqual(g_UILayers[i].node, node))
+		{
+			return g_UILayers[i];
+		}
+	}
+
+	return null;
+}
+
+function UILayers_node_get_max_element_order(node)
+{
+	var context = FLEXPANEL_GetContext(node);
+	var ret = 0;
+
+	if(context.elements !== undefined)
+	{
+		for(var i = 0; i < context.elements.length; ++i)
+		{
+			if(context.elements[i].elementOrder > ret)
+			{
+				ret = context.elements[i].elementOrder;
+			}
+		}
+	}
+
+	return ret;
+}
+
+function UILayers_node_get_max_element_order_recursive(node)
+{
+	var ret = UILayers_node_get_max_element_order(node);
+
+	for(var i = 0; i < node.getChildCount(); ++i)
+	{
+		var child = node.getChild(i);
+
+		var child_ret = UILayers_node_get_max_element_order_recursive(child);
+		if(child_ret > ret)
+		{
+			ret = child_ret;
+		}
+	}
+
+	return ret;
 }
 
 function UILayers_stretch_element(element_size, container_size, stretch_width, stretch_height, preserve_aspect)
@@ -1530,20 +1651,26 @@ var g_UILayerInstanceElementsFromWAD = {};
 
 function UILayerInstanceElement(element_data, from_wad)
 {
-	this.elementOrder        = element_data.elementOrder;
-	this.instanceObjectIndex = element_data.instanceObjectIndex;
-	this.instanceVariables   = element_data.instanceVariables;
-	this.instanceOffsetX     = element_data.instanceOffsetX;
-	this.instanceOffsetY     = element_data.instanceOffsetY;
-	this.instanceScaleX      = element_data.instanceScaleX;
-	this.instanceScaleY      = element_data.instanceScaleY;
-	this.instanceImageSpeed  = element_data.instanceImageSpeed;
-	this.instanceImageIndex  = element_data.instanceImageIndex;
-	this.instanceColour      = element_data.instanceColour;
-	this.instanceAngle       = element_data.instanceAngle;
-
 	if(from_wad)
 	{
+		this.elementOrder        = element_data.elementOrder;
+		this.instanceObjectIndex = element_data.instanceObjectIndex;
+		this.instanceVariables   = element_data.instanceVariables;
+		this.instanceOffsetX     = element_data.instanceOffsetX;
+		this.instanceOffsetY     = element_data.instanceOffsetY;
+		this.instanceScaleX      = element_data.instanceScaleX;
+		this.instanceScaleY      = element_data.instanceScaleY;
+		this.instanceImageSpeed  = element_data.instanceImageSpeed;
+		this.instanceImageIndex  = element_data.instanceImageIndex;
+		this.instanceColour      = element_data.instanceColour;
+		this.instanceAngle       = element_data.instanceAngle;
+
+		this.flexVisible    = element_data.flexVisible;
+		this.flexAnchor     = element_data.flexAnchor;
+		this.stretchWidth   = element_data.stretchWidth;
+		this.stretchHeight  = element_data.stretchHeight;
+		this.keepAspect     = element_data.keepAspect;
+
 		this.instanceId          = element_data.instanceId;
 		this.instanceCreate      = element_data.instanceCreate;
 		this.instancePreCreate   = element_data.instancePreCreate;
@@ -1551,21 +1678,33 @@ function UILayerInstanceElement(element_data, from_wad)
 		g_UILayerInstanceElementsFromWAD[this.instanceId] = this;
 	}
 	else{
+		this.elementOrder        = yyGetReal(variable_struct_get(element_data, "elementOrder"));
+		this.instanceObjectIndex = yyGetRef(variable_struct_get(element_data, "instanceObjectIndex"), REFID_OBJECT, undefined, undefined, true);
+		// this.instanceVariables   = element_data.instanceVariables; TODO
+		this.instanceOffsetX     = yyGetReal(variable_struct_get(element_data, "instanceOffsetX"));
+		this.instanceOffsetY     = yyGetReal(variable_struct_get(element_data, "instanceOffsetY"));
+		this.instanceScaleX      = yyGetReal(variable_struct_get(element_data, "instanceScaleX"));
+		this.instanceScaleY      = yyGetReal(variable_struct_get(element_data, "instanceScaleY"));
+		this.instanceImageSpeed  = yyGetReal(variable_struct_get(element_data, "instanceImageSpeed"));
+		this.instanceImageIndex  = yyGetReal(variable_struct_get(element_data, "instanceImageIndex"));
+		this.instanceColour      = yyGetInt32(variable_struct_get(element_data, "instanceColour"));
+		this.instanceAngle       = yyGetReal(variable_struct_get(element_data, "instanceAngle"));
+
+		this.flexVisible    = yyGetBool(variable_struct_get(element_data, "flexVisible"));
+		this.flexAnchor     = yyGetString(variable_struct_get(element_data, "flexAnchor"));
+		this.stretchWidth   = yyGetBool(variable_struct_get(element_data, "stretchWidth"));
+		this.stretchHeight  = yyGetBool(variable_struct_get(element_data, "stretchHeight"));
+		this.keepAspect     = yyGetBool(variable_struct_get(element_data, "keepAspect"));
+
 		this.instanceId          = undefined;
 		this.instanceCreate      = undefined;
 		this.instancePreCreate   = undefined;
 	}
 
-	this.flexVisible    = element_data.flexVisible;
-	this.flexAnchor     = element_data.flexAnchor;
-	this.stretchWidth   = element_data.stretchWidth;
-	this.stretchHeight  = element_data.stretchHeight;
-	this.keepAspect     = element_data.keepAspect;
-
 	this.m_element_id = undefined;
 }
 
-UILayerInstanceElement.prototype.create_element = function(target_layer)
+UILayerInstanceElement.prototype.create_element = function(target_layer, run_instance_create_events)
 {
 	if(this.m_element_id !== undefined)
 	{
@@ -1578,7 +1717,7 @@ UILayerInstanceElement.prototype.create_element = function(target_layer)
 	*/
 	var new_instance_id = this.instanceId !== undefined
 		? this.instanceId
-		: room_maxid++;
+		: g_room_maxid++;
 
 	var instance = new yyInstance(0.0, 0.0, new_instance_id, this.instanceObjectIndex, true);
 	instance.createdone = false;
@@ -1609,6 +1748,13 @@ UILayerInstanceElement.prototype.create_element = function(target_layer)
 
 	g_RunRoom.m_Active.Add(instance);
 	g_pInstanceManager.Add(instance);
+
+	if(run_instance_create_events)
+	{
+		instance.PerformEvent(EVENT_PRE_CREATE, 0, instance, instance);
+		instance.createdone = true;
+		instance.PerformEvent(EVENT_CREATE, 0, instance, instance);
+	}
 };
 
 UILayerInstanceElement.prototype.position = function(container, clipping_rect, set_clipping_rect)
@@ -1693,14 +1839,14 @@ UILayerInstanceElement.prototype.serialise = function()
 	variable_struct_set(ret, "type", "Instance");
 
 	variable_struct_set(ret, "elementOrder",        this.elementOrder);
-	variable_struct_set(ret, "instanceObjectIndex", this.instanceObjectIndex);
+	variable_struct_set(ret, "instanceObjectIndex", MAKE_REF(REFID_OBJECT, this.instanceObjectIndex));
 	variable_struct_set(ret, "instanceVariables",   this.instanceVariables);
 	variable_struct_set(ret, "instanceOffsetX",     this.instanceOffsetX);
 	variable_struct_set(ret, "instanceOffsetY",     this.instanceOffsetY);
 	variable_struct_set(ret, "instanceScaleX",      this.instanceScaleX);
 	variable_struct_set(ret, "instanceScaleY",      this.instanceScaleY);
 	variable_struct_set(ret, "instanceImageSpeed",  this.instanceImageSpeed);
-	variable_struct_set(ret, "instanceImageIndex",  this.instanceImageIndex);
+	variable_struct_set(ret, "instanceImageIndex",  MAKE_REF(REFID_SPRITE, this.instanceImageIndex));
 	variable_struct_set(ret, "instanceColour",      this.instanceColour);
 	variable_struct_set(ret, "instanceAngle",       this.instanceAngle);
 
@@ -1726,31 +1872,56 @@ UILayerInstanceElement.prototype.serialise = function()
 
 function UILayerSequenceElement(element_data, from_wad)
 {
-	this.elementOrder         = element_data.elementOrder;
-	this.sequenceIndex        = element_data.sequenceIndex;
-	this.sequenceOffsetX      = element_data.sequenceOffsetX;
-	this.sequenceOffsetY      = element_data.sequenceOffsetY;
-	this.sequenceScaleX       = element_data.sequenceScaleX;
-	this.sequenceScaleY       = element_data.sequenceScaleY;
-	this.sequenceColour       = element_data.sequenceColour;
-	this.sequenceImageSpeed   = element_data.sequenceImageSpeed;
-	this.sequenceSpeedType    = element_data.sequenceSpeedType;
-	this.sequenceHeadPosition = element_data.sequenceHeadPosition;
-	this.sequenceAngle        = element_data.sequenceAngle;
-	this.sequenceName         = from_wad ? element_data.sequenceName : undefined;
+	if(from_wad)
+	{
+		this.elementOrder         = element_data.elementOrder;
+		this.sequenceIndex        = element_data.sequenceIndex;
+		this.sequenceOffsetX      = element_data.sequenceOffsetX;
+		this.sequenceOffsetY      = element_data.sequenceOffsetY;
+		this.sequenceScaleX       = element_data.sequenceScaleX;
+		this.sequenceScaleY       = element_data.sequenceScaleY;
+		this.sequenceColour       = element_data.sequenceColour;
+		this.sequenceImageSpeed   = element_data.sequenceImageSpeed;
+		this.sequenceSpeedType    = element_data.sequenceSpeedType;
+		this.sequenceHeadPosition = element_data.sequenceHeadPosition;
+		this.sequenceAngle        = element_data.sequenceAngle;
+		this.sequenceName         = element_data.sequenceName;
 
-	this.flexVisible    = element_data.flexVisible;
-	this.flexAnchor     = element_data.flexAnchor;
-	this.stretchWidth   = element_data.stretchWidth;
-	this.stretchHeight  = element_data.stretchHeight;
-	this.tileHorizontal = element_data.tileHorizontal;
-	this.tileVertical   = element_data.tileVertical;
-	this.keepAspect     = element_data.keepAspect;
+		this.flexVisible    = element_data.flexVisible;
+		this.flexAnchor     = element_data.flexAnchor;
+		this.stretchWidth   = element_data.stretchWidth;
+		this.stretchHeight  = element_data.stretchHeight;
+		this.tileHorizontal = element_data.tileHorizontal;
+		this.tileVertical   = element_data.tileVertical;
+		this.keepAspect     = element_data.keepAspect;
+	}
+	else{
+		this.elementOrder         = yyGetReal(variable_struct_get(element_data, "elementOrder"));
+		this.sequenceIndex        = yyGetRef(variable_struct_get(element_data, "sequenceIndex"), REFID_SPRITE, g_pSequenceManager.Sequences.length, g_pSequenceManager.Sequences);
+		this.sequenceOffsetX      = yyGetReal(variable_struct_get(element_data, "sequenceOffsetX"));
+		this.sequenceOffsetY      = yyGetReal(variable_struct_get(element_data, "sequenceOffsetY"));
+		this.sequenceScaleX       = yyGetReal(variable_struct_get(element_data, "sequenceScaleX"));
+		this.sequenceScaleY       = yyGetReal(variable_struct_get(element_data, "sequenceScaleY"));
+		this.sequenceColour       = yyGetInt32(variable_struct_get(element_data, "sequenceColour"));
+		this.sequenceImageSpeed   = yyGetReal(variable_struct_get(element_data, "sequenceImageSpeed"));
+		this.sequenceSpeedType    = yyGetReal(variable_struct_get(element_data, "sequenceSpeedType"));
+		this.sequenceHeadPosition = yyGetReal(variable_struct_get(element_data, "sequenceHeadPosition"));
+		this.sequenceAngle        = yyGetReal(variable_struct_get(element_data, "sequenceAngle"));
+		this.sequenceName         = undefined;
+
+		this.flexVisible    = yyGetBool(variable_struct_get(element_data, "flexVisible"));
+		this.flexAnchor     = yyGetString(variable_struct_get(element_data, "flexAnchor"));
+		this.stretchWidth   = yyGetBool(variable_struct_get(element_data, "stretchWidth"));
+		this.stretchHeight  = yyGetBool(variable_struct_get(element_data, "stretchHeight"));
+		this.tileHorizontal = yyGetBool(variable_struct_get(element_data, "tileHorizontal"));
+		this.tileVertical   = yyGetBool(variable_struct_get(element_data, "tileVertical"));
+		this.keepAspect     = yyGetBool(variable_struct_get(element_data, "keepAspect"));
+	}
 
 	this.m_element_id = undefined;
 }
 
-UILayerSequenceElement.prototype.create_element = function(target_layer)
+UILayerSequenceElement.prototype.create_element = function(target_layer, run_instance_create_events)
 {
 	if(this.m_element_id !== undefined)
 	{
@@ -1849,7 +2020,7 @@ UILayerSequenceElement.prototype.serialise = function()
 	variable_struct_set(ret, "type", "Sequence");
 
 	variable_struct_set(ret, "elementOrder",         this.elementOrder);
-	variable_struct_set(ret, "sequenceIndex",        this.sequenceIndex);
+	variable_struct_set(ret, "sequenceIndex",        MAKE_REF(REFID_SEQUENCE, this.sequenceIndex));
 	variable_struct_set(ret, "sequenceOffsetX",      this.sequenceOffsetX);
 	variable_struct_set(ret, "sequenceOffsetY",      this.sequenceOffsetY);
 	variable_struct_set(ret, "sequenceScaleX",       this.sequenceScaleX);
@@ -1875,31 +2046,56 @@ UILayerSequenceElement.prototype.serialise = function()
 
 function UILayerSpriteElement(element_data, from_wad)
 {
-	this.elementOrder     = element_data.elementOrder;
-	this.spriteIndex      = element_data.spriteIndex;
-	this.spriteOffsetX    = element_data.spriteOffsetX;
-	this.spriteOffsetY    = element_data.spriteOffsetY;
-	this.spriteScaleX     = element_data.spriteScaleX;
-	this.spriteScaleY     = element_data.spriteScaleY;
-	this.spriteColour     = element_data.spriteColour;
-	this.spriteImageSpeed = element_data.spriteImageSpeed;
-	this.spriteSpeedType  = element_data.spriteSpeedType;
-	this.spriteImageIndex = element_data.spriteImageIndex;
-	this.spriteAngle      = element_data.spriteAngle;
-	this.spriteName       = from_wad ? element_data.spriteName : undefined;
+	if(from_wad)
+	{
+		this.elementOrder     = element_data.elementOrder;
+		this.spriteIndex      = element_data.spriteIndex;
+		this.spriteOffsetX    = element_data.spriteOffsetX;
+		this.spriteOffsetY    = element_data.spriteOffsetY;
+		this.spriteScaleX     = element_data.spriteScaleX;
+		this.spriteScaleY     = element_data.spriteScaleY;
+		this.spriteColour     = element_data.spriteColour;
+		this.spriteImageSpeed = element_data.spriteImageSpeed;
+		this.spriteSpeedType  = element_data.spriteSpeedType;
+		this.spriteImageIndex = element_data.spriteImageIndex;
+		this.spriteAngle      = element_data.spriteAngle;
+		this.spriteName       = element_data.spriteName;
 
-	this.flexVisible    = element_data.flexVisible;
-	this.flexAnchor     = element_data.flexAnchor;
-	this.stretchWidth   = element_data.stretchWidth;
-	this.stretchHeight  = element_data.stretchHeight;
-	this.tileHorizontal = element_data.tileHorizontal;
-	this.tileVertical   = element_data.tileVertical;
-	this.keepAspect     = element_data.keepAspect;
+		this.flexVisible    = element_data.flexVisible;
+		this.flexAnchor     = element_data.flexAnchor;
+		this.stretchWidth   = element_data.stretchWidth;
+		this.stretchHeight  = element_data.stretchHeight;
+		this.tileHorizontal = element_data.tileHorizontal;
+		this.tileVertical   = element_data.tileVertical;
+		this.keepAspect     = element_data.keepAspect;
+	}
+	else{
+		this.elementOrder     = yyGetReal(variable_struct_get(element_data, "elementOrder"));
+		this.spriteIndex      = yyGetRef(variable_struct_get(element_data, "spriteIndex"), REFID_SPRITE, g_pSpriteManager.Sprites.length, g_pSpriteManager.Sprites);
+		this.spriteOffsetX    = yyGetReal(variable_struct_get(element_data, "spriteOffsetX"));
+		this.spriteOffsetY    = yyGetReal(variable_struct_get(element_data, "spriteOffsetY"));
+		this.spriteScaleX     = yyGetReal(variable_struct_get(element_data, "spriteScaleX"));
+		this.spriteScaleY     = yyGetReal(variable_struct_get(element_data, "spriteScaleY"));
+		this.spriteColour     = yyGetInt32(variable_struct_get(element_data, "spriteColour"));
+		this.spriteImageSpeed = yyGetReal(variable_struct_get(element_data, "spriteImageSpeed"));
+		this.spriteSpeedType  = yyGetReal(variable_struct_get(element_data, "spriteSpeedType"));
+		this.spriteImageIndex = yyGetReal(variable_struct_get(element_data, "spriteImageIndex"));
+		this.spriteAngle      = yyGetReal(variable_struct_get(element_data, "spriteAngle"));
+		this.spriteName       = undefined;
+
+		this.flexVisible    = yyGetBool(variable_struct_get(element_data, "flexVisible"));
+		this.flexAnchor     = yyGetString(variable_struct_get(element_data, "flexAnchor"));
+		this.stretchWidth   = yyGetBool(variable_struct_get(element_data, "stretchWidth"));
+		this.stretchHeight  = yyGetBool(variable_struct_get(element_data, "stretchHeight"));
+		this.tileHorizontal = yyGetBool(variable_struct_get(element_data, "tileHorizontal"));
+		this.tileVertical   = yyGetBool(variable_struct_get(element_data, "tileVertical"));
+		this.keepAspect     = yyGetBool(variable_struct_get(element_data, "keepAspect"));
+	}
 
 	this.m_element_id = undefined;
 }
 
-UILayerSpriteElement.prototype.create_element = function(target_layer)
+UILayerSpriteElement.prototype.create_element = function(target_layer, run_instance_create_events)
 {
 	if(this.m_element_id !== undefined)
 	{
@@ -2043,7 +2239,7 @@ UILayerSpriteElement.prototype.serialise = function()
 	variable_struct_set(ret, "type", "Sprite");
 
 	variable_struct_set(ret, "elementOrder",     this.elementOrder);
-	variable_struct_set(ret, "spriteIndex",      this.spriteIndex);
+	variable_struct_set(ret, "spriteIndex",      MAKE_REF(REFID_SPRITE, this.spriteIndex));
 	variable_struct_set(ret, "spriteOffsetX",    this.spriteOffsetX);
 	variable_struct_set(ret, "spriteOffsetY",    this.spriteOffsetY);
 	variable_struct_set(ret, "spriteScaleX",     this.spriteScaleX);
@@ -2069,35 +2265,64 @@ UILayerSpriteElement.prototype.serialise = function()
 
 function UILayerTextElement(element_data, from_wad)
 {
-	this.elementOrder         = element_data.elementOrder;
-	this.textFontIndex        = element_data.textFontIndex;
-	this.textOffsetX          = element_data.textOffsetX;
-	this.textOffsetY          = element_data.textOffsetY;
-	this.textScaleX           = element_data.textScaleX;
-	this.textScaleY           = element_data.textScaleY;
-	this.textAngle            = element_data.textAngle;
-	this.textColour           = element_data.textColour;
-	this.textOriginX          = element_data.textOriginX;
-	this.textOriginY          = element_data.textOriginY;
-	this.textText             = element_data.textText;
-	this.textAlignment        = element_data.textAlignment;
-	this.textCharacterSpacing = element_data.textCharacterSpacing;
-	this.textLineSpacing      = element_data.textLineSpacing;
-	this.textFrameWidth       = element_data.textFrameWidth;
-	this.textFrameHeight      = element_data.textFrameHeight;
-	this.textWrap             = element_data.textWrap;
-	this.textName             = element_data.textName;
+	if(from_wad)
+	{
+		this.elementOrder         = element_data.elementOrder;
+		this.textFontIndex        = element_data.textFontIndex;
+		this.textOffsetX          = element_data.textOffsetX;
+		this.textOffsetY          = element_data.textOffsetY;
+		this.textScaleX           = element_data.textScaleX;
+		this.textScaleY           = element_data.textScaleY;
+		this.textAngle            = element_data.textAngle;
+		this.textColour           = element_data.textColour;
+		this.textOriginX          = element_data.textOriginX;
+		this.textOriginY          = element_data.textOriginY;
+		this.textText             = element_data.textText;
+		this.textAlignment        = element_data.textAlignment;
+		this.textCharacterSpacing = element_data.textCharacterSpacing;
+		this.textLineSpacing      = element_data.textLineSpacing;
+		this.textFrameWidth       = element_data.textFrameWidth;
+		this.textFrameHeight      = element_data.textFrameHeight;
+		this.textWrap             = element_data.textWrap;
+		this.textName             = element_data.textName;
 
-	this.flexVisible    = element_data.flexVisible;
-	this.flexAnchor     = element_data.flexAnchor;
-	this.stretchWidth   = element_data.stretchWidth;
-	this.stretchHeight  = element_data.stretchHeight;
-	this.keepAspect     = element_data.keepAspect;
+		this.flexVisible    = element_data.flexVisible;
+		this.flexAnchor     = element_data.flexAnchor;
+		this.stretchWidth   = element_data.stretchWidth;
+		this.stretchHeight  = element_data.stretchHeight;
+		this.keepAspect     = element_data.keepAspect;
+	}
+	else{
+		this.elementOrder         = yyGetReal(variable_struct_get(element_data, "elementOrder"));
+		this.textFontIndex        = yyGetRef(variable_struct_get(element_data, "textFontIndex"), REFID_FONT, g_pFontManager.Fonts.length, g_pFontManager.Fonts);
+		this.textOffsetX          = yyGetReal(variable_struct_get(element_data, "textOffsetX"));
+		this.textOffsetY          = yyGetReal(variable_struct_get(element_data, "textOffsetY"));
+		this.textScaleX           = yyGetReal(variable_struct_get(element_data, "textScaleX"));
+		this.textScaleY           = yyGetReal(variable_struct_get(element_data, "textScaleY"));
+		this.textAngle            = yyGetReal(variable_struct_get(element_data, "textAngle"));
+		this.textColour           = yyGetInt32(variable_struct_get(element_data, "textColour"));
+		this.textOriginX          = yyGetReal(variable_struct_get(element_data, "textOriginX"));
+		this.textOriginY          = yyGetReal(variable_struct_get(element_data, "textOriginY"));
+		this.textText             = yyGetString(variable_struct_get(element_data, "textText"));
+		this.textAlignment        = yyGetReal(variable_struct_get(element_data, "textAlignment"));
+		this.textCharacterSpacing = yyGetReal(variable_struct_get(element_data, "textCharacterSpacing"));
+		this.textLineSpacing      = yyGetReal(variable_struct_get(element_data, "textLineSpacing"));
+		this.textFrameWidth       = yyGetReal(variable_struct_get(element_data, "textFrameWidth"));
+		this.textFrameHeight      = yyGetReal(variable_struct_get(element_data, "textFrameHeight"));
+		this.textWrap             = yyGetBool(variable_struct_get(element_data, "textWrap"));
+		this.textName             = undefined;
+
+		this.flexVisible    = yyGetBool(variable_struct_get(element_data, "flexVisible"));
+		this.flexAnchor     = yyGetString(variable_struct_get(element_data, "flexAnchor"));
+		this.stretchWidth   = yyGetBool(variable_struct_get(element_data, "stretchWidth"));
+		this.stretchHeight  = yyGetBool(variable_struct_get(element_data, "stretchHeight"));
+		this.keepAspect     = yyGetBool(variable_struct_get(element_data, "keepAspect"));
+	}
 
 	this.m_element_id = undefined;
 }
 
-UILayerTextElement.prototype.create_element = function(target_layer)
+UILayerTextElement.prototype.create_element = function(target_layer, run_instance_create_events)
 {
 	if(this.m_element_id !== undefined)
 	{
@@ -2317,7 +2542,7 @@ UILayerTextElement.prototype.serialise = function()
 	variable_struct_set(ret, "type", "Text");
 
 	variable_struct_set(ret, "elementOrder",         this.elementOrder);
-	variable_struct_set(ret, "textFontIndex",        this.textFontIndex);
+	variable_struct_set(ret, "textFontIndex",        MAKE_REF(REFID_FONT, this.textFontIndex));
 	variable_struct_set(ret, "textOffsetX",          this.textOffsetX);
 	variable_struct_set(ret, "textOffsetY",          this.textOffsetY);
 	variable_struct_set(ret, "textScaleX",           this.textScaleX);
