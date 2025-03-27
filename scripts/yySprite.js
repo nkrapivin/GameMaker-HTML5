@@ -1359,6 +1359,13 @@ function SphereIsVisible(position, radius)
 	return frustum.IntersectsSphere(worldMat.TransformVec3(position), radius * cullScale);
 }
 
+function sphere_is_visible(_x,_y,_z,_r)
+{
+	var frustum = GetViewFrustum();
+	return frustum.IntersectsSphere(new Vector3(yyGetReal(_x),yyGetReal(_y),yyGetReal(_z)), yyGetReal(_r));
+}
+
+
 yySprite.prototype.CreateMask = function(){
 
 	var i = 0;
