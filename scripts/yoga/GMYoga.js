@@ -484,7 +484,7 @@ function flexpanel_create_node( _struct )
 }
 
 // #######################################################################################
-function flexpanel_delete_node( _node )
+function flexpanel_delete_node( _node, _recursive )
 {
 	var context = FLEXPANEL_GetContext(_node);
 
@@ -494,9 +494,34 @@ function flexpanel_delete_node( _node )
 		return;
 	}
 
-	// TODO: Delete UI layer elements
+	if(context.elements !== undefined)
+	{
+		for(var i = 0; i < context.elements.length; ++i)
+		{
+			context.elements[i].destroy_element();
+		}
+	}
+
+	var children;
+	if(_recursive)
+	{
+		children = [];
+
+		for(var i = 0; i < _node.getChildCount(); ++i)
+		{
+			children.push(_node.getChild(i));
+		}
+	}
 
 	g_yoga["Node"]["destroy"](_node);
+
+	if(_recursive)
+	{
+		while(children.length > 0)
+		{
+			flexpanel_delete_node(children.pop(), _recursive);
+		}
+	}
 }
 
 // #######################################################################################
@@ -1757,6 +1782,22 @@ UILayerInstanceElement.prototype.create_element = function(target_layer, run_ins
 	}
 };
 
+UILayerInstanceElement.prototype.destroy_element = function()
+{
+	if(this.m_element_id === undefined)
+	{
+		/* Element hasn't been created yet. */
+		return;
+	}
+
+	var element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id);
+	if(element !== null)
+	{
+		DoDestroy(element.m_pInstance, true);
+		this.m_element_id = undefined;
+	}
+};
+
 UILayerInstanceElement.prototype.position = function(container, clipping_rect, set_clipping_rect)
 {
 	if(this.m_element_id === undefined)
@@ -1955,6 +1996,22 @@ UILayerSequenceElement.prototype.create_element = function(target_layer, run_ins
 	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target_layer, NewSequence, true);
 };
 
+UILayerSequenceElement.prototype.destroy_element = function()
+{
+	if(this.m_element_id === undefined)
+	{
+		/* Element hasn't been created yet. */
+		return;
+	}
+
+	var element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id);
+	if(element !== null)
+	{
+		g_pLayerManager.RemoveElementFromLayer(g_RunRoom, element, element.m_layer, false, true);
+		this.m_element_id = undefined;
+	}
+};
+
 UILayerSequenceElement.prototype.position = function(container, clipping_rect, set_clipping_rect)
 {
 	var element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id);
@@ -2131,6 +2188,22 @@ UILayerSpriteElement.prototype.create_element = function(target_layer, run_insta
 	}
 
 	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target_layer, NewSprite, true);
+};
+
+UILayerSpriteElement.prototype.destroy_element = function()
+{
+	if(this.m_element_id === undefined)
+	{
+		/* Element hasn't been created yet. */
+		return;
+	}
+
+	var element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id);
+	if(element !== null)
+	{
+		g_pLayerManager.RemoveElementFromLayer(g_RunRoom, element, element.m_layer, false, true);
+		this.m_element_id = undefined;
+	}
 };
 
 UILayerSpriteElement.prototype.position = function(container, clipping_rect, set_clipping_rect)
@@ -2354,6 +2427,22 @@ UILayerTextElement.prototype.create_element = function(target_layer, run_instanc
 	}
 
 	this.m_element_id = g_pLayerManager.AddNewElement(g_RunRoom, target_layer, NewTextItem, true);
+};
+
+UILayerTextElement.prototype.destroy_element = function()
+{
+	if(this.m_element_id === undefined)
+	{
+		/* Element hasn't been created yet. */
+		return;
+	}
+
+	var element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id);
+	if(element !== null)
+	{
+		g_pLayerManager.RemoveElementFromLayer(g_RunRoom, element, element.m_layer, false, true);
+		this.m_element_id = undefined;
+	}
 };
 
 UILayerTextElement.prototype.position = function(container, clipping_rect, set_clipping_rect)
