@@ -484,7 +484,7 @@ function flexpanel_create_node( _struct )
 }
 
 // #######################################################################################
-function flexpanel_delete_node( _node )
+function flexpanel_delete_node( _node, _recursive )
 {
 	var context = FLEXPANEL_GetContext(_node);
 
@@ -502,7 +502,26 @@ function flexpanel_delete_node( _node )
 		}
 	}
 
+	var children;
+	if(_recursive)
+	{
+		children = [];
+
+		for(var i = 0; i < _node.getChildCount(); ++i)
+		{
+			children.push(_node.getChild(i));
+		}
+	}
+
 	g_yoga["Node"]["destroy"](_node);
+
+	if(_recursive)
+	{
+		while(children.length > 0)
+		{
+			flexpanel_delete_node(children.pop(), _recursive);
+		}
+	}
 }
 
 // #######################################################################################
