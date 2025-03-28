@@ -1680,7 +1680,7 @@ function UILayerInstanceElement(element_data, from_wad)
 	{
 		this.elementOrder        = element_data.elementOrder;
 		this.instanceObjectIndex = element_data.instanceObjectIndex;
-		this.instanceVariables   = element_data.instanceVariables;
+		this.instanceVariables   = undefined;
 		this.instanceOffsetX     = element_data.instanceOffsetX;
 		this.instanceOffsetY     = element_data.instanceOffsetY;
 		this.instanceScaleX      = element_data.instanceScaleX;
@@ -1705,7 +1705,7 @@ function UILayerInstanceElement(element_data, from_wad)
 	else{
 		this.elementOrder        = yyGetReal(variable_struct_get(element_data, "elementOrder"));
 		this.instanceObjectIndex = yyGetRef(variable_struct_get(element_data, "instanceObjectIndex"), REFID_OBJECT, undefined, undefined, true);
-		// this.instanceVariables   = element_data.instanceVariables; TODO
+		this.instanceVariables   = undefined;
 		this.instanceOffsetX     = yyGetReal(variable_struct_get(element_data, "instanceOffsetX"));
 		this.instanceOffsetY     = yyGetReal(variable_struct_get(element_data, "instanceOffsetY"));
 		this.instanceScaleX      = yyGetReal(variable_struct_get(element_data, "instanceScaleX"));
@@ -1714,6 +1714,21 @@ function UILayerInstanceElement(element_data, from_wad)
 		this.instanceImageIndex  = yyGetReal(variable_struct_get(element_data, "instanceImageIndex"));
 		this.instanceColour      = yyGetInt32(variable_struct_get(element_data, "instanceColour"));
 		this.instanceAngle       = yyGetReal(variable_struct_get(element_data, "instanceAngle"));
+
+		var v = variable_struct_get(element_data, "instanceVariables");
+		for (var vkey in v)
+		{
+			if (vkey.startsWith("gml") && v.hasOwnProperty(vkey))
+			{
+				if (this.instanceVariables === undefined)
+				{
+					this.instanceVariables = {};
+					this.instanceVariables.__yyIsGMLObject = true;
+				}
+
+				this.instanceVariables[vkey] = v[vkey];
+			}
+		}
 
 		this.flexVisible    = yyGetBool(variable_struct_get(element_data, "flexVisible"));
 		this.flexAnchor     = yyGetString(variable_struct_get(element_data, "flexAnchor"));
@@ -1747,8 +1762,6 @@ UILayerInstanceElement.prototype.create_element = function(target_layer, run_ins
 	var instance = new yyInstance(0.0, 0.0, new_instance_id, this.instanceObjectIndex, true);
 	instance.createdone = false;
 
-	// TODO: Variables
-
 	// pI->SetInitCode(Code_GetEntry(m_params.m_init_code_slot));
 	// pI->SetPreCreateCode(Code_GetEntry(m_params.m_pre_create_code_slot));
 	instance.image_xscale = this.instanceScaleX;
@@ -1777,6 +1790,20 @@ UILayerInstanceElement.prototype.create_element = function(target_layer, run_ins
 	if(run_instance_create_events)
 	{
 		instance.PerformEvent(EVENT_PRE_CREATE, 0, instance, instance);
+
+		if(this.instanceVariables !== undefined)
+		{
+			/* Assign instance variables from node created at runtime with a GML structure. */
+
+			for (var vkey in this.instanceVariables)
+			{
+				if (vkey.startsWith("gml") && this.instanceVariables.hasOwnProperty(vkey))
+				{
+					instance[vkey] = this.instanceVariables[vkey];
+				}
+			}
+		}
+
 		instance.createdone = true;
 		instance.PerformEvent(EVENT_CREATE, 0, instance, instance);
 	}
@@ -1881,7 +1908,6 @@ UILayerInstanceElement.prototype.serialise = function()
 
 	variable_struct_set(ret, "elementOrder",        this.elementOrder);
 	variable_struct_set(ret, "instanceObjectIndex", MAKE_REF(REFID_OBJECT, this.instanceObjectIndex));
-	variable_struct_set(ret, "instanceVariables",   this.instanceVariables);
 	variable_struct_set(ret, "instanceOffsetX",     this.instanceOffsetX);
 	variable_struct_set(ret, "instanceOffsetY",     this.instanceOffsetY);
 	variable_struct_set(ret, "instanceScaleX",      this.instanceScaleX);
@@ -1890,6 +1916,25 @@ UILayerInstanceElement.prototype.serialise = function()
 	variable_struct_set(ret, "instanceImageIndex",  MAKE_REF(REFID_SPRITE, this.instanceImageIndex));
 	variable_struct_set(ret, "instanceColour",      this.instanceColour);
 	variable_struct_set(ret, "instanceAngle",       this.instanceAngle);
+
+	if(this.instanceVariables !== undefined)
+	{
+		/* This was created from a GML structure, copy the (initial) variables. */
+
+		var variables = JSON.parse(JSON.stringify(this.instanceVariables));
+		variable_struct_set(ret, "instanceVariables", variables);
+	}
+	else if(this.instancePreCreate !== undefined)
+	{
+		/* This was created from the WAD, execute pre-create code to recreate the IDE variables. */
+
+		var variables = {};
+		variables.__yyIsGMLObject = true;
+
+		this.instancePreCreate(variables, variables);
+
+		variable_struct_set(ret, "instanceVariables", variables);
+	}
 
 	variable_struct_set(ret, "flexVisible",   this.flexVisible);
 	variable_struct_set(ret, "flexAnchor",    this.flexAnchor);
@@ -1900,13 +1945,13 @@ UILayerInstanceElement.prototype.serialise = function()
 	var element;
 	if(this.m_element_id !== undefined && (element = g_pLayerManager.GetElementFromID(g_RunRoom, this.m_element_id)) !== null)
 	{
-		ret.instanceId = element.m_instanceID;
+		variable_struct_set(ret, "instanceId", element.m_instanceID);
 	}
 	else{
-		ret.instanceId = -1;
+		variable_struct_set(ret, "instanceId", -1);
 	}
 
-	ret.elementId = this.m_element_id;
+	variable_struct_set(ret, "elementId", this.m_element_id);
 
 	return ret;
 };
