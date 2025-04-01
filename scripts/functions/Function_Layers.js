@@ -3735,22 +3735,41 @@ function layer_tilemap_destroy( arg1)
 function layer_x(arg1,arg2)
 {
     var layer = layerGetFromTargetRoom(arg1);
-   
+
     if(layer!=null)
     {
-        layer.m_xoffset = yyGetReal(arg2);
+        if(layer.IsUILayer())
+        {
+            var ui_layer = UILayers_Get_By_Name(yyGetString(arg1));
+            if(ui_layer !== null)
+            {
+                ui_layer.x_offset = yyGetReal(arg2);
+            }
+        }
+        else{
+            layer.m_xoffset = yyGetReal(arg2);
+        }
     }
 };
 
 function layer_y(arg1,arg2)
 {
     var layer = layerGetFromTargetRoom(arg1);
-   
+
     if(layer!=null)
     {
-        layer.m_yoffset = yyGetReal(arg2);
+        if(layer.IsUILayer())
+        {
+            var ui_layer = UILayers_Get_By_Name(yyGetString(arg1));
+            if(ui_layer !== null)
+            {
+                ui_layer.y_offset = yyGetReal(arg2);
+            }
+        }
+        else{
+            layer.m_yoffset = yyGetReal(arg2);
+        }
     }
-   
 };
 
 function layer_get_x(arg1)
@@ -3759,7 +3778,17 @@ function layer_get_x(arg1)
    
     if(layer!=null)
     {
-        return layer.m_xoffset;
+        if(layer.IsUILayer())
+        {
+            var ui_layer = UILayers_Get_By_Name(yyGetString(arg1));
+            if(ui_layer !== null)
+            {
+                return ui_layer.x_offset;
+            }
+        }
+        else{
+            return layer.m_xoffset;
+        }
     }
     
     return 0;
@@ -3771,7 +3800,17 @@ function layer_get_y(arg1)
    
     if(layer!=null)
     {
-        return layer.m_yoffset;
+        if(layer.IsUILayer())
+        {
+            var ui_layer = UILayers_Get_By_Name(yyGetString(arg1));
+            if(ui_layer !== null)
+            {
+                return ui_layer.y_offset;
+            }
+        }
+        else{
+            return layer.m_yoffset;
+        }
     }
     
     return 0;
