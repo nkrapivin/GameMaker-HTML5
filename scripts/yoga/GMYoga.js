@@ -1122,15 +1122,47 @@ function flexpanel_node_style_set_direction(_node, _value)
 }
 
 // #######################################################################################
-function flexpanel_node_style_set_margin(_node, _edge, _value)
-{	
-	_node.setMargin( yyGetInt32(_edge), yyGetReal(_value));
+function flexpanel_node_style_set_margin(_node, _edge, _value, _unit)
+{
+	if(_unit === undefined)
+	{
+		_unit = YGUnitPoint;
+	}
+
+	switch(_unit)
+	{
+		case YGUnitPoint:
+			_node.setMargin( yyGetInt32(_edge), yyGetReal(_value));
+			break;
+
+		case YGUnitPercent:
+			_node.setMarginPercent( yyGetInt32(_edge), yyGetReal(_value));
+			break;
+
+		case YGUnitAuto:
+			_node.setMarginAuto( yyGetInt32(_edge));
+			break;
+	}
 }
 
 // #######################################################################################
-function flexpanel_node_style_set_padding(_node, _edge, _value)
-{	
-	_node.setPadding( yyGetInt32(_edge), yyGetReal(_value));
+function flexpanel_node_style_set_padding(_node, _edge, _value, _unit)
+{
+	if(_unit === undefined)
+	{
+		_unit = YGUnitPoint;
+	}
+
+	switch(_unit)
+	{
+		case YGUnitPoint:
+			_node.setPadding( yyGetInt32(_edge), yyGetReal(_value));
+			break;
+
+		case YGUnitPercent:
+			_node.setPaddingPercent( yyGetInt32(_edge), yyGetReal(_value));
+			break;
+	}
 }
 
 // #######################################################################################
