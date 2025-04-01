@@ -131,6 +131,11 @@ CLayer.prototype.IsUILayer = function()
     return this.m_gui_layer != eLAYER_NORMAL;
 };
 
+CLayer.prototype.IsGUISpaceLayer = function()
+{
+    return this.m_gui_layer == eLAYER_GUI_IN_GUI;
+};
+
 /** @constructor */
 function YYRoomLayer()
 {

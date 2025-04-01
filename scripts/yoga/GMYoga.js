@@ -1781,6 +1781,7 @@ UILayerInstanceElement.prototype.create_element = function(target_layer, run_ins
 	}
 
 	instance.SetOnUILayer(true);
+	instance.SetInGUISpace(target_layer.IsGUISpaceLayer());
 
 	this.m_element_id = g_pLayerManager.AddInstanceToLayer(g_RunRoom, target_layer, instance, this.elementOrder);
 

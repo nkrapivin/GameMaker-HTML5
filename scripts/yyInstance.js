@@ -18,6 +18,11 @@ var Current_Event_Type = -1;
 var Current_Event_Number = -1;
 var g_currentCreateCounter = 0;
 
+var CollisionDomain = {
+	ROOM: 0,
+	UI_VIEW_LAYER: 1,
+	UI_GUI_LAYER: 2,
+};
 
 // #############################################################################################
 /// Function:<summary>
@@ -142,6 +147,7 @@ function    yyInstance( _xx, _yy, _id, _objectind, _AddObjectLink, _create_dummy
 	this.m_nLayerID = -1;
 	this.m_bOnActiveLayer = false;
 	this.m_bOnUILayer = false;
+	this.m_bInGUISpace = false;
 }
 
 yyInstance.prototype = {
@@ -3271,6 +3277,23 @@ yyInstance.prototype.GetOnActiveLayer=function() { return this.m_bOnActiveLayer;
 yyInstance.prototype.SetOnActiveLayer=function( _onLayer)	{ this.m_bOnActiveLayer = _onLayer; };
 yyInstance.prototype.GetOnUILayer = function() { return this.m_bOnUILayer; }
 yyInstance.prototype.SetOnUILayer = function(_onUILayer) { this.m_bOnUILayer = _onUILayer; };
+yyInstance.prototype.GetInGUISpace = function() { return this.m_bInGUISpace; };
+yyInstance.prototype.SetInGUISpace = function(_inGUISpace) { this.m_bInGUISpace = _inGUISpace; };
+
+yyInstance.prototype.GetCollisionDomain = function()
+{
+	if(this.GetInGUISpace())
+	{
+		return CollisionDomain.UI_GUI_LAYER;
+	}
+	else if(this.GetOnUILayer())
+	{
+		return CollisionDomain.UI_VIEW_LAYER;
+	}
+	else{
+		return CollisionDomain.ROOM;
+	}
+};
 
 // #############################################################################################
 /// Function:<summary>
