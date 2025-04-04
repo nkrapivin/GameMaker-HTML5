@@ -799,29 +799,29 @@ LayerManager.prototype.AddNewElement = function(_room,_layer,_element,_buildRunt
      * layer, but we want to interleave instance/sprite drawing on UI Layers, so we bypass that
      * optimisation and instead insert into the list based on the element m_order flag there.
     */
-
     var insertIndex = 0;
-    for(var elemI = 0; elemI < _layer.m_elements.pool.length; elemI++)
-    {
-        var pEl = _layer.m_elements.pool[elemI];
-
-        if(_layer.IsUILayer)
+    if (_layer.IsUILayer()) {
+        for(var elemI = 0; elemI < _layer.m_elements.pool.length; elemI++)
         {
-            /* This is a UI layer. Set insertIndex to the last element with a greater
-             * m_order than the element we are inserting (or the end of the list).
+            var pEl = _layer.m_elements.pool[elemI];
+            /* For a UI layer sorted in ascending order (lowest m_order first),
+             * set insertIndex to the index after the last element whose m_order is less than or equal 
+             * to the new element's m_order, or at the end of the list if all elements satisfy this.
             */
-
-            if (pEl !== null && pEl.m_order < _element.m_order)
+            if (pEl !== null && pEl.m_order <= _element.m_order) 
+            {
+                insertIndex = elemI + 1;
+            } 
+            else 
             {
                 break;
             }
-            else {
-                insertIndex = elemI;
-            }
+        
         }
-        else{
-            /* This is a room layer. */
-
+    }
+    else {
+        for(var elemI = 0; elemI < _layer.m_elements.pool.length; elemI++)
+        {
             if(pEl == null || pEl.m_type != eLayerElementType_Instance)
             {
                 break;
