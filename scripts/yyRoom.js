@@ -1218,7 +1218,6 @@ yyRoom.prototype.DrawLayerBackgroundElement = function(_rect,_layer,_el)
 	
 	var bcol = back.blend;
 
-
     // Does this background have a sprite?	
 	// @if feature("sprites")
 	if (sprite_exists(back.index))
@@ -1227,20 +1226,22 @@ yyRoom.prototype.DrawLayerBackgroundElement = function(_rect,_layer,_el)
         var pImage = g_pSpriteManager.Get( back.index );
         if (!pImage) return;
         
-        // get current frame and round (it will be a fraction), then MOD to number of frames
-        var vindex = (~~back.image_index) % pImage.ppTPE.length;
-        if(pImage.ppTPE[vindex]!=undefined){
-        
-            if(back.stretch)
-            {
-                var xscale = g_RunRoom.GetWidth()/pImage.width;
-                var yscale = g_RunRoom.GetHeight()/pImage.height;
-            
-                Graphics_TextureDrawTiled(pImage.ppTPE[vindex], _layer.m_xoffset, _layer.m_yoffset, xscale, yscale, back.vtiled, back.htiled, bcol, back.alpha);
-            }
-            else
-                Graphics_TextureDrawTiled(pImage.ppTPE[vindex], _layer.m_xoffset, _layer.m_yoffset, back.xscale, back.yscale, back.vtiled, back.htiled, bcol, back.alpha);
-        }
+		var xr = g_roomExtents.left;
+		var yr = g_roomExtents.top;
+		var wr = (g_roomExtents.right - g_roomExtents.left);
+		var hr = (g_roomExtents.bottom - g_roomExtents.top);
+
+		if(back.stretch)
+		{
+			var xscale = g_RunRoom.GetWidth()/pImage.width;
+			var yscale = g_RunRoom.GetHeight()/pImage.height;
+		
+			pImage.DrawTiled(back.image_index, _layer.m_xoffset, _layer.m_yoffset, xscale, yscale, back.htiled, back.vtiled, xr, yr, wr, hr, bcol, back.alpha);
+		}
+		else 
+		{
+			pImage.DrawTiled(back.image_index, _layer.m_xoffset, _layer.m_yoffset, back.xscale, back.yscale, back.htiled, back.vtiled, xr, yr, wr, hr, bcol, back.alpha);
+		}
 	}
 	else
 	// @endif sprites
@@ -1272,7 +1273,28 @@ yyRoom.prototype.DrawLayerSpriteElement = function(_rect,_layer,_el)
 	{
 	    var pImage = g_pSpriteManager.Get( _el.m_spriteIndex );
 		if (!pImage) return;
-		
+	
+		// This only exists for UILayers
+		if (_layer.IsUILayer()) {
+			if (_el.m_htile || _el.m_vtile) {
+				pImage.DrawTiled(
+					_el.m_imageIndex,
+					_el.m_x + _layer.m_xoffset,
+					_el.m_y + _layer.m_yoffset,
+					_el.m_imageScaleX,
+					_el.m_imageScaleY,
+					_el.m_htile,
+					_el.m_vtile,
+					_el.m_tile_xr,
+					_el.m_tile_yr,
+					_el.m_tile_wr,
+					_el.m_tile_hr,
+					_el.m_imageBlend,
+					_el.m_imageAlpha);
+				return;
+			}
+		}
+
 		if(pImage.m_skeletonSprite !== undefined)
 		{
 			if ((_el.m_imageScaleX == 1.0) && (_el.m_imageScaleY == 1.0) && (_el.m_imageAngle == 0.0) && (_el.m_imageBlend == 0xffffff)) // &&  (pInst.image_alpha == 1.0))
@@ -3302,10 +3324,37 @@ yyRoom.prototype.HandleSequenceText = function (_rect, _layer, _pSequenceEl, _no
 
 
 
+function gui_x_to_mouse_x(guiX) {
+    // Make sure our canvas rect is updated.
+    CalcCanvasLocation(canvas, g_CanvasRect);
+    
+    var gui_width = g_GUIWidth;
+    if (gui_width < 0.0)
+        gui_width = window_get_width();
+    
+    // Invert the scaling: multiply by (g_AppSurfaceRect.w / gui_width)
+    var deviceX = guiX * (g_AppSurfaceRect.w / gui_width) + g_CanvasRect.left + g_AppSurfaceRect.x;
+    return deviceX;
+}
+
+function gui_y_to_mouse_y(guiY) {
+    CalcCanvasLocation(canvas, g_CanvasRect);
+    
+    var gui_height = g_GUIHeight;
+    if (gui_height < 0.0)
+        gui_height = window_get_height();
+    
+    var deviceY = guiY * (g_AppSurfaceRect.h / gui_height) + g_CanvasRect.top + g_AppSurfaceRect.y;
+    return deviceY;
+}
+
 yyRoom.prototype.DrawRoomLayers = function(_rect, _gui_mask){
 
     var oldtype = Current_Event_Type;
     var oldnumb = Current_Event_Number;
+
+	var old_scissor = g_scissorRect;
+	var current_rect = null;
 
     Current_Event_Type = EVENT_DRAW;
     Current_Event_Number = 0;
@@ -3319,7 +3368,7 @@ yyRoom.prototype.DrawRoomLayers = function(_rect, _gui_mask){
 	        {
 	            continue;
 	        }
-	        
+
 	        if (g_pLayerManager.IsDepthForced())
 		    {
 			    WebGL_d3d_set_depth_RELEASE(g_pLayerManager.GetForcedDepth());
@@ -3342,6 +3391,65 @@ yyRoom.prototype.DrawRoomLayers = function(_rect, _gui_mask){
 	            el = player.m_elements.Get(j);
 	            if(el!=null)
 	            {
+
+					if (el.m_clippingRect == null && current_rect != null)
+					{
+						gpu_set_scissor(old_scissor.x, old_scissor.y, old_scissor.w, old_scissor.h);
+						current_rect = null;
+					}
+					else if (el.m_clippingRect != null && (current_rect == null || current_rect != el.m_clippingRect))
+					{
+						var scissor_xoff = 0;
+						var scissor_yoff = 0;
+						var xscale = 1;
+						var yscale = 1;
+		
+						if (player.IsUILayer() && !player.IsGUISpaceLayer())
+						{
+							var cam = g_pCameraManager.GetActiveCamera();
+							if (cam != null)
+							{
+								xscale = g_clipw / cam.GetViewWidth();
+								yscale = g_cliph / cam.GetViewHeight();
+							}
+						}
+		
+		
+						if (g_RunRoom.GetEnableViews())
+						{
+							/* Clipping rect is relative to the viewport. */
+							scissor_xoff = g_clipx;
+							scissor_yoff = g_clipy;
+						}
+		
+						var cx = el.m_clippingRect.left * xscale + scissor_xoff;
+						var cy = el.m_clippingRect.top * yscale + scissor_yoff;
+						var cw = el.m_clippingRect.GetWidth() * xscale;
+						var ch = el.m_clippingRect.GetHeight() * yscale;
+		
+						if (player.IsGUISpaceLayer())
+						{
+							gx = gui_x_to_mouse_x(cx);
+							// Flip the Y coordinate: subtract the computed device Y from the window height.
+							gy = window_get_height() - gui_y_to_mouse_y(cy);
+							egx = gui_x_to_mouse_x(cx + cw);
+							egy = window_get_height() - gui_y_to_mouse_y(cy + ch);
+							
+							// Determine the lower value as the bottom and the difference as the height.
+							var bottom = Math.min(gy, egy);
+							var top = Math.max(gy, egy);
+							
+							cx = gx;
+							cy = bottom;
+							cw = egx - gx;
+							ch = top - bottom;
+						}
+			
+						gpu_set_scissor(cx, cy, cw, ch);
+						current_rect = el.m_clippingRect;
+					}
+
+
 	                if(el.m_type === eLayerElementType_Background)
 	                {
 	                    this.DrawLayerBackgroundElement(_rect,player,el);
@@ -3386,6 +3494,12 @@ yyRoom.prototype.DrawRoomLayers = function(_rect, _gui_mask){
 					}
 	            }
 	        }
+
+			if (current_rect != null)
+			{
+				gpu_set_scissor(old_scissor.x, old_scissor.y, old_scissor.w, old_scissor.h);
+				current_rect = null;
+			}
 
 	        ExecuteLayerScript(player.m_id, player.m_endScript);
 	        ResetLayerShader(player.m_shaderId);
