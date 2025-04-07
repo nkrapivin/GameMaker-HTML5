@@ -949,14 +949,36 @@ function    Graphics_CanvasSizeSupported( _canvas ) {
 
 // #############################################################################################
 /// Function:<summary>
-///             Draw a texture tiled across the screen. This creates a "cache" of the large image
-///				to save drawing it many times.
-///             NB: Because of speed issues, the non-WebGL version of this explicitly ignores the
+///				Draws the texture tiled to cover at least the given area (xr,yr,wr,hr)
+///				No clipping is performed so a slightly larger area might be filled
+///				Its origin is placed on position x,y  and it is scaled as indicated
+///				htiled indicates whether to use horizontal tiling, vtiled for vertical tiling
+///				col is the blend color, alpha is the alpha transparency value (0-1)
+///				NB: Because of speed issues, the non-WebGL version of this explicitly ignores the
 ///             scaling values.
 ///          </summary>
+///
+/// In:		 <param name="id"></param>
+///			 <param name="xorig"></param>
+///			 <param name="yorig"></param>
+///			 <param name="x"></param>
+///			 <param name="y"></param>
+///			 <param name="xsc">IGNORED</param>
+///			 <param name="ysc">IGNORED</param>
+///			 <param name="htiled"></param>
+///			 <param name="vtiled"></param>
+///			 <param name="xr"></param>
+///			 <param name="yr"></param>
+///			 <param name="wr"></param>
+///			 <param name="hr"></param>
+///			 <param name="col"></param>
+///			 <param name="alpha"></param>
+/// Out:	 <returns>
+///				
+///			 </returns>
 // #############################################################################################
-function	Graphics_TextureDrawTiled_RELEASE( _pTPE, _x, _y, _xsc, _ysc, vtile, htile, _col, _alpha ) {
-
+function	Graphics_TextureDrawTiled_RELEASE( _pTPE, _xorig, _yorig, _x, _y, _xsc, _ysc, htiled, vtiled, _xr, _yr, _wr, _hr, _col, _alpha ) 
+{
 	var pTexture = _pTPE.texture;
 
 	if (!pTexture) return;
@@ -966,32 +988,47 @@ function	Graphics_TextureDrawTiled_RELEASE( _pTPE, _x, _y, _xsc, _ysc, vtile, ht
 	if (_pTPE.w == 0 || _pTPE.h == 0) return;
 
 
-    var i = 0;
-    if( vtile ) i = 1;
-    if( htile ) i |= 2; 
+    var cam = g_pCameraManager.GetActiveCamera();
+	if ((cam != null) && (cam.m_is2D == false))
+    {
+        // Erm, bounds won't be correct, so disable tiling
+        //dbg_csol.Output("Attempting to use tiled draw with perspective projection - this won't work properly\n");
+        htiled = false;
+        vtiled = false;
+    }
 
+    var i = 0;
+    if( vtiled ) i = 1;
+    if( htiled ) i |= 2; 
 
     // tiled?        
     if (i === 0)
     {
-    	graphics.globalAlpha = _alpha;
+		// C++ does this ???
+        // Graphics_TextureDraw_RELEASE(_pTPE, _xorig, _yorig, _x, _y, _xsc, _ysc, 0, _col, undefined, undefined, undefined, _alpha);
+		// return true;
+
+		graphics.globalAlpha = _alpha;
     	graphics._drawImage(pTexture, _pTPE.x, _pTPE.y, _pTPE.w, _pTPE.h, _x + _pTPE.XOffset, _y + _pTPE.YOffset, (_pTPE.CropWidth * _xsc), (_pTPE.CropHeight * _ysc));
         return;
     }            
-        
+
+	var ow = _pTPE.ow;
+	var oh = _pTPE.oh;
+
 	var w = _pTPE.ow;
 	var h = _pTPE.oh;
-	if (htile)
+	if (htiled)
 	{
-		w = (((((g_pCurrentView.worldw + (_pTPE.ow - 1)) / _pTPE.ow) & 0xffffffff) + 2) * _pTPE.ow);						
+		w = (((((_wr + (ow - 1)) / ow) & 0xffffffff) + 2) * ow);						
 		//_x = g_worldx + (~~((_x - g_worldx) % _pTPE.ow) - _pTPE.ow);		
-		_x = g_worldx + (((_x - g_worldx) % _pTPE.ow) - _pTPE.ow);		
+		_x = _xr + (((_x - _xr) % ow) - ow);		
 	}
-	if (vtile)
+	if (vtiled)
 	{
-		h = (((((g_pCurrentView.worldh + (_pTPE.oh - 1)) / _pTPE.oh) & 0xffffffff) + 2) * _pTPE.oh);		
+		h = (((((_hr + (oh - 1)) / oh) & 0xffffffff) + 2) * oh);		
 		//_y = g_worldy + (~~((_y - g_worldy) % _pTPE.oh) - _pTPE.oh);
-		_y = g_worldy + (((_y - g_worldy) % _pTPE.oh) - _pTPE.oh);
+		_y = _yr + (((_y - _yr) % oh) - oh);
 	}
     
 	if ((_pTPE.hvcached != null) && (_pTPE.hvcached.width < (w * _pTPE.hvcachedScale) || _pTPE.hvcached.height < (h * _pTPE.hvcachedScale)))
@@ -1067,8 +1104,6 @@ function	Graphics_TextureDrawTiled_RELEASE( _pTPE, _x, _y, _xsc, _ysc, vtile, ht
     graphics._drawImage(_pTPE.hvcached, _x, _y, _pTPE.hvcached.width / _pTPE.hvcachedScale, _pTPE.hvcached.height / _pTPE.hvcachedScale);
     // graphics._drawImage(_pTPE.hvcached, _x, _y);
 }
-
-
 
 // #############################################################################################
 /// Function:<summary>

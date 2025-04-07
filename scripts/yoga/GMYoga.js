@@ -1480,43 +1480,35 @@ function UILayers_Layout_measure_node(node, width, widthMode, height, heightMode
 	return computed_size;
 }
 
-function UILayers_Layout_node_position(node, outer_container, clipping_rect, set_clipping_rect)
+function UILayers_Layout_node_position(node, outer_rect, clipping_rect, set_clipping_rect)
 {
 	var context = FLEXPANEL_GetContext(node);
 
-	/* Get our bounding box relative to our parent container. */
-	var local_x = node.getComputedLeft();
-	var local_y = node.getComputedTop();
-	var local_w = node.getComputedWidth();
-	var local_h = node.getComputedHeight();
-
+	// Compute absolute bounding box for the current container
 	var container = new YYRECT();
-	container.left = outer_container.left + local_x;
-	container.top = outer_container.top + local_y;
-	container.right = container.left + local_w - 1.0;
-	container.bottom = container.top + local_h - 1.0;
+	container.left = outer_rect.left + node.getComputedLeft();
+	container.top = outer_rect.top + node.getComputedTop();
+	container.right = container.left + node.getComputedWidth();
+	container.bottom = container.top + node.getComputedHeight();
 
-	var container_clip = context.clip_content
-		? YYRECT.Intersection(container, clipping_rect)
-		: clipping_rect;
-
-	if(context.clip_content)
-	{
+	// Update clipping rectangle if the current context enforces clipping
+	if(context.clip_content) {
 		set_clipping_rect = true;
+		clipping_rect = YYRECT.Intersection(container, clipping_rect);
 	}
 
-	for(var i = 0; i < node.getChildCount(); ++i)
-	{
+	// Traverse each child, passing down the current effective clip.
+    var childCount = node.getChildCount();
+	for(var i = 0; i < childCount; ++i) {
 		var child = node.getChild(i);
-		UILayers_Layout_node_position(child, container, container_clip, set_clipping_rect);
+		UILayers_Layout_node_position(child, container, clipping_rect, set_clipping_rect);
 	}
 
-	if(context.elements !== undefined)
-	{
-		for(var i = 0; i < context.elements.length; ++i)
-		{
+	// Traverse this hacked in elements, passing down the current effective clip.
+	if (context.elements !== undefined) {
+		for(var i = 0; i < context.elements.length; ++i) {
 			var element = context.elements[i];
-			element.position(container, container_clip, set_clipping_rect);
+			element.position(container, clipping_rect, set_clipping_rect);
 		}
 	}
 }
@@ -1903,7 +1895,15 @@ UILayerInstanceElement.prototype.position = function(container, clipping_rect, s
 		instance.image_xscale = stretched_size[0] / base_size[0];
 		instance.image_yscale = stretched_size[1] / base_size[1];
 
-		// TODO: Clipping
+		if (set_clipping_rect)
+		{
+			if (element.m_clippingRect == null)
+			{
+				element.m_clippingRect = new YYRECT();
+			}
+		
+			element.m_clippingRect.Copy(clipping_rect);
+		}
 	}
 };
 
@@ -2130,7 +2130,15 @@ UILayerSequenceElement.prototype.position = function(container, clipping_rect, s
 			element.m_scaleY = stretched_size[1] / base_size[1];
 		}
 
-		// TODO: Clipping
+		if (set_clipping_rect)
+		{
+			if (element.m_clippingRect == null)
+			{
+				element.m_clippingRect = new YYRECT();
+			}
+		
+			element.m_clippingRect.Copy(clipping_rect);
+		}
 	}
 };
 
@@ -2327,10 +2335,75 @@ UILayerSpriteElement.prototype.position = function(container, clipping_rect, set
 			/* Derive the scales to get the sprite to the desired size. */
 			element.m_imageScaleX = stretched_size[0] / base_size[0];
 			element.m_imageScaleY = stretched_size[1] / base_size[1];
+
+			/* Check if we need to tile the sprite */
+			element.m_htile = this.tileHorizontal;
+			element.m_vtile = this.tileVertical;
+			if (element.m_htile || element.m_vtile)
+			{
+				/* Set properties only if tile is enabled */
+				element.m_tile_xr = container.left;
+				element.m_tile_yr = container.top;
+				element.m_tile_wr = container.right - container.left;
+				element.m_tile_hr = container.bottom - container.top;
+			}
 		}
 
-		// TODO: Tiling
-		// TODO: Clipping
+		if (set_clipping_rect)
+		{
+			if (element.m_clippingRect == null)
+			{
+				element.m_clippingRect = new YYRECT();
+			}
+		
+			element.m_clippingRect.Copy(clipping_rect);
+		}
+
+		if (set_clipping_rect)
+		{
+			/* Further reduce the clipping rectangle to the container bounds as required if tiling. */
+		
+			if (element.m_htile)
+			{
+				element.m_clippingRect.left = max(clipping_rect.left, container.left);
+				element.m_clippingRect.right = min(clipping_rect.right, container.right);
+			}
+		
+			if (element.m_vtile)
+			{
+				element.m_clippingRect.top = max(clipping_rect.top, container.top);
+				element.m_clippingRect.bottom = min(clipping_rect.bottom, container.bottom);
+			}
+		}
+		else if(element.m_htile || element.m_vtile)
+		{
+			/* Set the clipping rectangle to the container bounds on tiling axes. */
+		
+			if (element.m_clippingRect == null)
+			{
+				element.m_clippingRect = new YYRECT();
+			}
+		
+			if (element.m_htile)
+			{
+				element.m_clippingRect.left = container.left;
+				element.m_clippingRect.right = container.right;
+			}
+			else {
+				element.m_clippingRect.left = clipping_rect.left;
+				element.m_clippingRect.right = clipping_rect.right;
+			}
+		
+			if (element.m_vtile)
+			{
+				element.m_clippingRect.top = container.top;
+				element.m_clippingRect.bottom = container.bottom;
+			}
+			else {
+				element.m_clippingRect.top = clipping_rect.top;
+				element.m_clippingRect.bottom = clipping_rect.bottom;
+			}
+		}
 	}
 };
 
@@ -2590,7 +2663,15 @@ UILayerTextElement.prototype.position = function(container, clipping_rect, set_c
 			element.m_frameH = this.textFrameHeight;
 		}
 
-		// TODO: Clipping
+		if (set_clipping_rect)
+		{
+			if (element.m_clippingRect == null)
+			{
+				element.m_clippingRect = new YYRECT();
+			}
+		
+			element.m_clippingRect.Copy(clipping_rect);
+		}
 	}
 };
 

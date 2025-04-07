@@ -483,17 +483,6 @@ function InitWebGLTextureGetFunctions() {
         return texture;
     };    
 
-    /*// And again for background textures    
-    var fn_background_get_texture = background_get_texture;
-    background_get_texture = function(_ind) {
-    
-        var texture = fn_background_get_texture(_ind);
-        // violating law of Demeter on the texture (reaching through to retrieve webgl_textureid)...
-        if (texture && !texture.WebGLTexture.webgl_textureid) {
-            WebGL_BindTexture(texture.TPE);
-        }
-        return texture;
-    };*/
     WebGL_StartFrame_RELEASE();// Call this to setup defaults..
 }
 
@@ -1148,7 +1137,7 @@ function WebGL_drawImage_Replacement_RELEASE(_pTPE, _tx,_ty,_tw,_th,  _x,_y,_w,_
 ///				
 ///			 </returns>
 // #############################################################################################
-function	WebGL_TextureDrawTiled_RELEASE( _pTPE, _x, _y, _xsc, _ysc, vtiled, htiled, _col, _alpha ) 
+function	WebGL_TextureDrawTiled_RELEASE( _pTPE, _xorig, _yorig, _x, _y, _xsc, _ysc, _htiled, _vtiled, _xr, _yr, _wr, _hr, _col, _alpha ) 
 {
     var pBuff, curr, colcurr, pCoords, pColours, pUVs,w,h;
     if (!_pTPE.texture.webgl_textureid) {
@@ -1161,29 +1150,32 @@ function	WebGL_TextureDrawTiled_RELEASE( _pTPE, _x, _y, _xsc, _ysc, vtiled, htil
 
     var ow = _pTPE.ow * _axsc;
 	var oh = _pTPE.oh * _aysc;
-	//account for larger extents when view is rotated - 
-	var xr = g_roomExtents.left;
-	var yr = g_roomExtents.top;
-	var wr = (g_roomExtents.right - g_roomExtents.left);
-	var hr = (g_roomExtents.bottom - g_roomExtents.top);
+
+    var cam = g_pCameraManager.GetActiveCamera();
+	if ((cam != null) && (cam.m_is2D == false))
+    {
+        // Erm, bounds won't be correct, so disable tiling
+        //dbg_csol.Output("Attempting to use tiled draw with perspective projection - this won't work properly\n");
+        _htiled = false;
+        _vtiled = false;
+    }
+
+    if (!_htiled && !_vtiled) {
+        WebGL_TextureDraw_RELEASE(_pTPE, _xorig, _yorig, _x, _y, _xsc, _ysc, 0, _col, undefined, undefined, undefined, _alpha);
+		return true;
+	}
 
 	w = ow;
 	h = oh;
-	if (htiled)
+	if (_htiled)
 	{
-		//w = (((((g_pCurrentView.worldw + (pTPE->ow - 1)) / pTPE->ow) & 0xffffffff) + 2) * pTPE->ow);
-		//w = (((g_ViewAreaW + (ow - 1)) / ow) + 2) * ow;
-		//x = g_ViewAreaX + fmod(x - g_ViewAreaX, ow) - ow;
-		w = (((wr + (ow - 1)) / ow) + 2) * ow;
-		_x = xr + fmod(_x - xr, ow) - ow;
+		w = (((_wr + (ow - 1)) / ow) + 2) * ow;
+		_x = _xr + fmod(_x - _xr, ow) - ow;
 	}
-	if (vtiled)
+	if (_vtiled)
 	{
-		// h = (((((g_pCurrentView.worldh + (pTPE.oh - 1)) / pTPE.oh) & 0xffffffff) + 2) * pTPE->oh);
-		//h = (((g_ViewAreaH + (oh - 1)) / oh) + 2) * oh;
-		//y = g_ViewAreaY + fmod(y - g_ViewAreaY, oh) - oh;
-		h = (((hr + (oh - 1)) / oh) + 2) * oh;
-		_y = yr + fmod(_y - yr, oh) - oh;
+		h = (((_hr + (oh - 1)) / oh) + 2) * oh;
+		_y = _yr + fmod(_y - _yr, oh) - oh;
 	}
 	
     if ( (ow <= 0) || (oh <= 0) ) return;           // Drawing would take forever
@@ -1215,20 +1207,21 @@ function	WebGL_TextureDrawTiled_RELEASE( _pTPE, _x, _y, _xsc, _ysc, vtiled, htil
 	var v2 = (_pTPE.y + _pTPE.h)*invTHeight;
 	var nw = _xsc * _pTPE.CropWidth;
 	var nh = _ysc * _pTPE.CropHeight;
-	
 
     // Work out the loop count targets
     var tx = (w / ow);
     var ty = (h / oh);
 
+	x1 = -_xsc*_xorig;
+	y1 = -_ysc*_yorig;
     
     var yy = _y + (_pTPE.YOffset * _aysc);
-    for (var cy = 0; cy < ty; cy++, yy += (_pTPE.oh * _aysc))
+    for (var cy = 0; cy < ty; cy++, yy += oh)
     {
         var xx = _x + (_pTPE.XOffset * _axsc);
 	    var yy2 = yy + nh;
 
-	    for (var cx = 0; cx < tx; cx++, xx += (_pTPE.ow * _axsc))
+	    for (var cx = 0; cx < tx; cx++, xx += ow)
 	    {
 		    // Cut the texture up varo 4 strips to avoid texture cache misses on PSP
 		    pBuff = g_webGL.AllocVerts(yyGL.PRIM_TRIANGLE, _pTPE.texture.webgl_textureid, g_webGL.VERTEX_FORMAT_2D, 6 );
@@ -1244,8 +1237,8 @@ function	WebGL_TextureDrawTiled_RELEASE( _pTPE, _x, _y, _xsc, _ysc, vtiled, htil
 
 		    // Top Left
 		    pColours[index] = col1;
-		    pCoords[index + 0] = xx;
-		    pCoords[index + 1] = yy;
+		    pCoords[index + 0] = xx + x1;
+		    pCoords[index + 1] = yy + y1;
 		    pCoords[index + 2] = GR_Depth;
 		    pUVs[index + 0] = u;
 		    pUVs[index + 1] = v;
@@ -1253,8 +1246,8 @@ function	WebGL_TextureDrawTiled_RELEASE( _pTPE, _x, _y, _xsc, _ysc, vtiled, htil
 		    // Top Right
 		    index += stride;
 		    pColours[index] = col2;
-		    pCoords[index + 0] = xx2;
-		    pCoords[index + 1] = yy;
+		    pCoords[index + 0] = xx2 + x1;
+		    pCoords[index + 1] = yy + y1;
 		    pCoords[index + 2] = GR_Depth;
 		    pUVs[index + 0] = u2;
 		    pUVs[index + 1] = v;
@@ -1262,8 +1255,8 @@ function	WebGL_TextureDrawTiled_RELEASE( _pTPE, _x, _y, _xsc, _ysc, vtiled, htil
 		    // Bottom Right
 		    index += stride;
 		    pColours[index] = col3;
-		    pCoords[index + 0] = xx2;
-		    pCoords[index + 1] = yy2;
+		    pCoords[index + 0] = xx2 + x1;
+		    pCoords[index + 1] = yy2 + y1;
 		    pCoords[index + 2] = GR_Depth;
 		    pUVs[index + 0] = u2;
 		    pUVs[index + 1] = v2;
@@ -1271,8 +1264,8 @@ function	WebGL_TextureDrawTiled_RELEASE( _pTPE, _x, _y, _xsc, _ysc, vtiled, htil
 		    // Bottom Right
 		    index += stride;
 		    pColours[index] = col3;
-		    pCoords[index + 0] = xx2;
-		    pCoords[index + 1] = yy2;
+		    pCoords[index + 0] = xx2 + x1;
+		    pCoords[index + 1] = yy2 + y1;
 		    pCoords[index + 2] = GR_Depth;
 		    pUVs[index + 0] = u2;
 		    pUVs[index + 1] = v2;
@@ -1280,8 +1273,8 @@ function	WebGL_TextureDrawTiled_RELEASE( _pTPE, _x, _y, _xsc, _ysc, vtiled, htil
 		    // Bottom Left
 		    index += stride;
 		    pColours[index] = col4;
-		    pCoords[index + 0] = xx;
-		    pCoords[index + 1] = yy2;
+		    pCoords[index + 0] = xx + x1;
+		    pCoords[index + 1] = yy2 + y1;
 		    pCoords[index + 2] = GR_Depth;
 		    pUVs[index + 0] = u;
 		    pUVs[index + 1] = v2;
@@ -1289,8 +1282,8 @@ function	WebGL_TextureDrawTiled_RELEASE( _pTPE, _x, _y, _xsc, _ysc, vtiled, htil
             // Top left again
             index += stride;
             pColours[index] = col1;
-		    pCoords[index + 0] = xx;
-		    pCoords[index + 1] = yy;
+		    pCoords[index + 0] = xx + x1;
+		    pCoords[index + 1] = yy + y1;
 		    pCoords[index + 2] = GR_Depth;
 		    pUVs[index + 0] = u;
 		    pUVs[index + 1] = v;

@@ -92,14 +92,20 @@ YYRECT.prototype.Copy = function (_bbox) {
 YYRECT.prototype.Intersection = function(r1, r2)
 {
 	var r = new YYRECT();
-
-	r.left = Math.max(r1.left, r2.left),
-	r.top = Math.max(r1.top, r2.top),
-	r.right = Math.min(r1.right, r2.right),
-	r.bottom = Math.min(r1.bottom, r2.bottom)
-
+	r.left = Math.max(r1.left, r2.left);
+	r.top = Math.max(r1.top, r2.top);
+	r.right = Math.min(r1.right, r2.right);
+	r.bottom = Math.min(r1.bottom, r2.bottom);
 	return r;
 }
+
+YYRECT.prototype.GetWidth = function () {
+	return this.right - this.left;
+};
+
+YYRECT.prototype.GetHeight = function () {
+	return this.bottom - this.top;
+};
 
 // @if feature("sprites")
 // #############################################################################################
@@ -1538,6 +1544,36 @@ yySprite.prototype.Draw = function (_ind, _x, _y, _xscale, _yscale, _angle, _col
 		}
 	}
 };
+
+yySprite.prototype.DrawTiled = function(_ind, _x, _y, _xscale, _yscale, _htile, _vtile, _tile_xr, _tile_yr, _tile_wr, _tile_hr, _colour, _alpha) {
+
+	if (this.numb <= 0) {
+		return;
+	}
+
+	if (this.sequence != null) {
+		if (_ind < 0)
+			return; // denotes empty space in the sequence
+	}
+
+	if ((this.nineslicedata != null) && this.nineslicedata.GetEnabled())
+	{
+		yyError("This function can't be used to draw sprites that have nine-slice drawing enabled");
+	}
+	else
+	{
+		// get current frame and round (it will be a fraction), then MOD to number of frames
+		_ind = (~~_ind) % this.ppTPE.length;
+
+		const pTPE = this.ppTPE[_ind];
+		if (!pTPE) {
+			console.log("Error: Texture page for " + this.pName + " is not loaded");
+		}
+		else {
+			Graphics_TextureDrawTiled(pTPE, this.xOrigin, this.yOrigin, _x, _y, _xscale, _yscale, _htile, _vtile, _tile_xr, _tile_yr, _tile_wr, _tile_hr, _colour, _alpha);
+		}
+	}
+}
 
 
 yySprite.prototype.GetSkeletonSlotsAtPoint = function(_inst, _x, _y, _list)

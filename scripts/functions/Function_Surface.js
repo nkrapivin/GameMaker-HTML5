@@ -897,9 +897,14 @@ function draw_surface_stretched(_id,_x,_y,_w,_h)
 function draw_surface_tiled(_id,_x,_y) 
 {
     var pSurf = g_Surfaces.Get(yyGetInt32(_id));
-	if( pSurf != null)
+	if (pSurf != null)
 	{
-	    Graphics_TextureDrawTiled(pSurf.m_pTPE, yyGetReal(_x), yyGetReal(_y), 1, 1, true, true, 0xffffff, 1);
+        var xr = g_roomExtents.left;
+		var yr = g_roomExtents.top;
+		var wr = (g_roomExtents.right - g_roomExtents.left);
+		var hr = (g_roomExtents.bottom - g_roomExtents.top);
+
+        Graphics_TextureDrawTiled(pSurf.m_pTPE, 0, 0, yyGetReal(_x), yyGetReal(_y), 1, 1, true, true, xr, yr, wr, hr, 0xffffff, 1);
     }
 }
 
