@@ -886,6 +886,9 @@ function WebGL_Matrix_Multiply(_s1,_s2,_resmat) {
     }
     else
     {
+        if(!Array.isArray(_resmat) )
+            yyError("matrix_multiply : result_matrix is not an array");
+
         for (var i = 0; i < 16; i++) {
             _resmat[i] = s3.m[i];
         }
