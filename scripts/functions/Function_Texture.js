@@ -350,10 +350,10 @@ function draw_sprite_tiled(_pInst, _sprite, _sub_index, _x, _y) {
 	var pSpr = g_pSpriteManager.Get(_sprite);
 	if (pSpr != null)
 	{
-		var xr = g_roomExtents.left;
-		var yr = g_roomExtents.top;
-		var wr = (g_roomExtents.right - g_roomExtents.left);
-		var hr = (g_roomExtents.bottom - g_roomExtents.top);
+		var xr = g_worldx;
+		var yr = g_worldy;
+		var wr = g_pCurrentView.worldw;
+		var hr = g_pCurrentView.worldh;
 
     	pSpr.DrawTiled(_sub_index, yyGetReal(_x), yyGetReal(_y), 1, 1, true, true, xr, yr, wr, hr, 0xffffff, g_GlobalAlpha);
     }
@@ -392,10 +392,10 @@ function draw_sprite_tiled_ext(_pInst, _sprite,_sub_index,_x,_y,_xscale,_yscale,
 	{
 		_color = ConvertGMColour(yyGetInt32(_color));
 
-		var xr = g_roomExtents.left;
-		var yr = g_roomExtents.top;
-		var wr = (g_roomExtents.right - g_roomExtents.left);
-		var hr = (g_roomExtents.bottom - g_roomExtents.top);
+		var xr = g_worldx;
+		var yr = g_worldy;
+		var wr = g_pCurrentView.worldw;
+		var hr = g_pCurrentView.worldh;
 		
 		pSpr.DrawTiled(_sub_index, yyGetReal(_x), yyGetReal(_y), yyGetReal(_xscale), yyGetReal(_yscale), true, true, xr, yr, wr, hr, _color, _alpha);
     }

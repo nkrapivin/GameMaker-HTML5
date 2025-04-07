@@ -1226,10 +1226,10 @@ yyRoom.prototype.DrawLayerBackgroundElement = function(_rect,_layer,_el)
         var pImage = g_pSpriteManager.Get( back.index );
         if (!pImage) return;
         
-		var xr = g_roomExtents.left;
-		var yr = g_roomExtents.top;
-		var wr = (g_roomExtents.right - g_roomExtents.left);
-		var hr = (g_roomExtents.bottom - g_roomExtents.top);
+		var xr = g_worldx;
+		var yr = g_worldy;
+		var wr = g_pCurrentView.worldw;
+		var hr = g_pCurrentView.worldh;
 
 		if(back.stretch)
 		{
