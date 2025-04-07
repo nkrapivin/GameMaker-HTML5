@@ -863,7 +863,7 @@ function WebGL_Matrix_Build(_x,_y,_z, _xrot,_yrot,_zrot, _xscale,_yscale,_zscale
 ///				
 ///			</returns>
 // #############################################################################################
-function WebGL_Matrix_Multiply(_s1,_s2) {
+function WebGL_Matrix_Multiply(_s1,_s2,_resmat) {
 
     var s1 = new Matrix();
     var s2 = new Matrix();
@@ -875,11 +875,21 @@ function WebGL_Matrix_Multiply(_s1,_s2) {
     }
     s3.Multiply(s1, s2);
 
-    var mat = [];
-    for (var i = 0; i < 16; i++) {
-        mat[i] = s3.m[i];
+    if(_resmat ==undefined)
+    {
+
+        var mat = [];
+        for (var i = 0; i < 16; i++) {
+            mat[i] = s3.m[i];
+        }
+        return mat;
     }
-    return mat;
+    else
+    {
+        for (var i = 0; i < 16; i++) {
+            _resmat[i] = s3.m[i];
+        }
+    }
 }
 
 function WebGL_Matrix_Transform_Vertex(_mat, _x, _y, _z)
