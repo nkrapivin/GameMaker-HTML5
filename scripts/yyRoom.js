@@ -4207,6 +4207,110 @@ yyRoom.prototype.Draw = function () {
 	Graphics_Restore();
 };
 
+/**
+ * Calculates the GUI transform matrix and its inverse.
+ * Returns an object with the computed values: { sx, sy, tx, ty }.
+ *
+ * @param {Matrix} guiMat - The matrix which transforms from GUI space to screen space.
+ * @param {Matrix} invGuiMat - The inverse matrix that transforms from screen space back to GUI.
+ * @returns {{sx: number, sy: number, tx: number, ty: number}}
+ */
+function CalcGUITransformMat(guiMat, invGuiMat) {
+    // Reset both matrices to identity.
+    guiMat.unit();
+    invGuiMat.unit();
+    
+    // Determine the dimensions to work with.
+    var gui_width = g_GUIWidth;
+    var gui_height = g_GUIHeight;
+    if (gui_width < 0) {
+        gui_width = (g_ApplicationSurface < 0)
+            ? g_DisplayWidth
+            : surface_get_width(g_ApplicationSurface);
+    }
+    if (gui_height < 0) {
+        gui_height = (g_ApplicationSurface < 0)
+            ? g_DisplayHeight
+            : surface_get_height(g_ApplicationSurface);
+    }
+    
+    // Update AppSurfaceRect (look for 'g_AppSurfaceRect')
+    Get_FullScreenOffset();
+
+    // Cache width and height from the offsets.
+    var w = g_AppSurfaceRect.w;
+    var h = g_AppSurfaceRect.h;
+    
+    // Initialize scale and translation variables.
+    var sx, sy, tx, ty;
+    
+    if (g_GUI_Maximise) {
+        // Calculate xoffset and yoffset.
+        var xoffset = -Math.floor(g_DisplayWidth / 2.0); // g_DeviceWidth
+        var yoffset = -Math.floor(g_DisplayHeight / 2.0); // g_DeviceHeight
+        
+        // Only modify offsets if g_GUI_Xoffset / g_GUI_Yoffset is valid (not 0x80000000).
+        if (g_GUI_Xoffset !== 0x80000000) {
+            xoffset += g_GUI_Xoffset;
+        }
+        if (g_GUI_Yoffset !== 0x80000000) {
+            yoffset += g_GUI_Yoffset;
+        }
+        tx = xoffset;
+        ty = yoffset;
+        sx = g_GUI_X_Scale;
+        sy = g_GUI_Y_Scale;
+    } else {
+        sx = w / gui_width;
+        sy = h / gui_height;
+        tx = -(w / 2.0);
+        ty = -(h / 2.0);
+    }
+    
+    // Build the GUI-to-screen transform:
+    // First apply scaling then translation.
+    guiMat.SetScale(sx, sy, 1.0);
+    guiMat.Translation(tx, ty, 16000);
+    
+    // Build the inverse transform:
+    invGuiMat.SetScale(1.0 / sx, 1.0 / sy, 1.0);
+    invGuiMat.Translation( - (tx + (g_DisplayWidth / 2.0)) / sx, - (ty + (g_DisplayHeight / 2.0)) / sy, -1.0 );
+    
+    // Return the computed scaling and translation values.
+    return { sx: sx, sy: sy, tx: tx, ty: ty };
+}
+
+/**
+ * Calculates the GUI matrices (if needed) and returns the rectangle that maps the entire display.
+ * If guiMatrix or screenToGuiTransform are not provided, new Matrix instances are used.
+ *
+ * @param {Matrix} [guiMatrix] - Optional Matrix for the GUI transform.
+ * @param {Matrix} [screenToGuiTransform] - Optional Matrix for the inverse transform.
+ * @returns {YYRECT} A rectangle object.
+ */
+function Calc_GUI_Matrices_And_Rect(guiMatrix, screenToGuiTransform) {
+    // Use local matrices if none are provided.
+    guiMatrix = guiMatrix || new Matrix();
+    screenToGuiTransform = screenToGuiTransform || new Matrix();
+    
+    // Calculate the transform.
+    var trans = CalcGUITransformMat(guiMatrix, screenToGuiTransform);
+    var sx = trans.sx, sy = trans.sy, tx = trans.tx, ty = trans.ty;
+    
+    // Calculate half-width and half-height of the device.
+    var hw = g_DisplayWidth / 2.0; // g_DeviceWidth
+    var hh = g_DisplayHeight / 2.0; // g_DeviceHeight
+    
+    // Calculate the rectangle bounds.
+    var r = new YYRECT();
+    r.left = Math.floor((-hw - tx) / sx);
+    r.right = Math.ceil((hw - tx) / sx);
+    r.top = Math.floor((-hh - ty) / sy);
+    r.bottom = Math.ceil((hh - ty) / sy);
+    
+    return r;
+}
+
 // #############################################################################################
 /// Function:<summary>
 ///             Works out the GUI view matrix and scaling, and sets it
@@ -4276,8 +4380,6 @@ yyRoom.prototype.RemoveMarked = function () {
 	}
 };
 
-
-
 // #############################################################################################
 /// Function:<summary>
 ///             Delete an instance from the room
@@ -4313,7 +4415,6 @@ yyRoom.prototype.DeactivateInstance = function (_pInst) {
 		_pInst.active = false;
 	}
 };
-
 
 // #############################################################################################
 /// Property: <summary>

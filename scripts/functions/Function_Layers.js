@@ -2471,9 +2471,46 @@ function layer_set_visible( arg1,arg2)
     var pLayer = layerGetFromTargetRoom(arg1);
     if (pLayer === null) return;
    
-   pLayer.m_visible = yyGetBool(arg2);
-  
+    var visible = yyGetBool(arg2);
+    pLayer.m_visible = visible;
+
+    if (pLayer.IsUILayer())
+    {
+        if (visible)
+        {
+            /* Layout newly-visible UI layers to avoid spurious mouse/etc events on any instances
+            * before they have a valid position.
+            */
+            var uilayer = UILayers_Get_By_Name(pLayer.m_pName);
+
+            if (pLayer.IsGUISpaceLayer())
+            {
+                var gui_rect = Calc_GUI_Matrices_And_Rect();
+                UILayers_Layout_single_layer(uilayer, gui_rect, eLAYER_GUI_IN_GUI);
+            }
+            else {
+                var view_rect = UILayers_Calculate_Initial_View_Rect();
+                UILayers_Layout_single_layer(uilayer, view_rect, eLAYER_GUI_IN_VIEW);
+            }
+        }
+
+        for (var i = 0; i < pLayer.m_elements.length; i++) {
+            var el = pLayer.m_elements.Get(i);
+            if (el != null) {
+                if (el.m_type === eLayerElementType_Instance) {
+                    var inst = el.m_pInstance;
+                    if (visible) {
+                        g_RunRoom.ActivateInstance(inst);
+                    }
+                    else {
+                        g_RunRoom.DeactivateInstance(inst);
+                    }
+                }
+            }
+        }
+    }
 };
+
 function layer_get_visible( arg1) 
 {
     var pLayer = layerGetFromTargetRoom(arg1);

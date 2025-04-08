@@ -1957,7 +1957,10 @@ function  EventHandleKeyPressed(key_pressed)
 	{
 		// get the object
 		var pInst = pool[o];
-		if (pInst.marked) {
+
+		// Instances can be removed from the active pool midway through a keypress event
+		// so we end up with holes in the m_Active in the current loop.
+		if (!pInst || pInst.marked) {
 		    continue;
 		}
 		
