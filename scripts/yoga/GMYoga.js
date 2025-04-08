@@ -1349,7 +1349,8 @@ function UILayers_Layout(rect, gui_mask)
 		/* Mark leaf nodes dirty so Yoga will rediscover their sizes. */
 		UILayers_Layout_node_prepare(ui_layer.node);
 
-		ui_layer.node.calculateLayout((rect.right - rect.left), (rect.bottom - rect.top), YGDirectionInherit); // TODO: layoutDirection parameter
+		var direction = flexpanel_node_style_get_direction(ui_layer.node);
+		ui_layer.node.calculateLayout((rect.right - rect.left), (rect.bottom - rect.top), direction);
 
 		var offset_rect = new YYRECT();
 		offset_rect.Copy(rect);
@@ -1362,6 +1363,35 @@ function UILayers_Layout(rect, gui_mask)
 
 		UILayers_Layout_node_position(ui_layer.node, offset_rect, offset_rect, false);
 	}
+}
+
+function UILayers_Layout_single_layer(ui_layer, rect, gui_mask) {
+
+	if(!(ui_layer.layer.m_visible) || (ui_layer.layer.m_gui_layer & gui_mask) == 0)
+	{
+		return;
+	}
+
+    // Mark the node’s leaf nodes as dirty so that Yoga recalculates sizes.
+    UILayers_Layout_node_prepare(ui_layer.node);
+    
+    // Calculate the layout for this node using the available width and height.
+    var width = rect.right - rect.left;
+    var height = rect.bottom - rect.top;
+
+	var direction = flexpanel_node_style_get_direction(ui_layer.node);
+    ui_layer.node.calculateLayout(width, height, direction);
+    
+    // Create an offset rectangle based on the provided rect and this layer’s offsets.
+    var offsetRect = new YYRECT();
+    offsetRect.Copy(rect);
+    offsetRect.left += ui_layer.x_offset;
+    offsetRect.right += ui_layer.x_offset;
+    offsetRect.top += ui_layer.y_offset;
+    offsetRect.bottom += ui_layer.y_offset;
+    
+    // Compute and store the absolute positions for this UI node.
+    UILayers_Layout_node_position(ui_layer.node, offsetRect);
 }
 
 function UILayers_Layout_node_prepare(node)
