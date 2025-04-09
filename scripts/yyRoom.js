@@ -1231,6 +1231,13 @@ yyRoom.prototype.DrawLayerBackgroundElement = function(_rect,_layer,_el)
 		var wr = (g_roomExtents.right - g_roomExtents.left);
 		var hr = (g_roomExtents.bottom - g_roomExtents.top);
 
+		//Backgrounds ignore sprite origin
+		var origxorig = pImage.GetXOrigin();
+		var origyorig = pImage.GetYOrigin();
+
+		pImage.xOrigin = 0;
+		pImage.yOrigin = 0;
+
 		if(back.stretch)
 		{
 			var xscale = g_RunRoom.GetWidth()/pImage.width;
@@ -1242,6 +1249,10 @@ yyRoom.prototype.DrawLayerBackgroundElement = function(_rect,_layer,_el)
 		{
 			pImage.DrawTiled(back.image_index, _layer.m_xoffset, _layer.m_yoffset, back.xscale, back.yscale, back.htiled, back.vtiled, xr, yr, wr, hr, bcol, back.alpha);
 		}
+
+		//Restore origin back
+		pImage.xOrigin = origxorig;
+		pImage.yOrigin = origyorig;
 	}
 	else
 	// @endif sprites

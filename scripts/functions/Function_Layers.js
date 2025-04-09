@@ -3379,7 +3379,12 @@ function layer_text_x( _textelID,_x)
     var el = layerTextGetElement(_textelID);
     if (el != null)
     {
-        el.m_x = yyGetReal(_x);
+        if (!el.m_layer.IsUILayer()) {
+            el.m_x = yyGetReal(_x);
+        }
+        else {
+            el.m_uiNode.textOffsetX = _xscale;
+        }
     }
 };
 
@@ -3388,7 +3393,12 @@ function layer_text_y( _textelID,_y)
     var el = layerTextGetElement(_textelID);
     if (el != null)
     {
-        el.m_y = yyGetReal(_y);
+        if (!el.m_layer.IsUILayer()) {
+            el.m_y = yyGetReal(_y);
+        }
+        else {
+            el.m_uiNode.textOffsetY = yyGetReal(_y);
+        }
     }
 };
 
@@ -3397,7 +3407,12 @@ function layer_text_xscale( _textelID,_xscale)
     var el = layerTextGetElement(_textelID);
     if (el != null)
     {
-        el.m_scaleX = yyGetReal(_xscale);
+        if (!el.m_layer.IsUILayer()) {
+            el.m_scaleX = yyGetReal(_xscale);
+        }
+        else {
+            el.m_uiNode.textScaleX = yyGetReal(_xscale);
+        }
     }
 };
 
@@ -3406,7 +3421,12 @@ function layer_text_yscale( _textelID,_yscale)
     var el = layerTextGetElement(_textelID);
     if (el != null)
     {
-        el.m_scaleY = yyGetReal(_yscale);
+        if (!el.m_layer.IsUILayer()) {
+            el.m_scaleY = yyGetReal(_yscale);
+        }
+        else {
+            el.m_uiNode.textScaleY = yyGetReal(_yscale);
+        }
     }
 };
 

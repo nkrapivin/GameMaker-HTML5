@@ -362,16 +362,16 @@ function FLEXPANEL_Init_From_Struct(_node, _struct, _from_wad)
 		case "border":
 			_node.setBorder( YGEdgeAll, yyGetReal(value));
 			break;
-		case "left":
+		case "positionLeft":
 			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeLeft, function( n, v, e ) { n.setPosition(e, v) }, function( n, v, e ) { n.setPositionPercent(e, v) } );
 			break;
-		case "right":
+		case "positionRight":
 			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeRight, function( n, v, e ) { n.setPosition(e, v) }, function( n, v, e ) { n.setPositionPercent(e, v) } );
 			break;
-		case "top":
+		case "positionTop":
 			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeTop, function( n, v, e ) { n.setPosition(e, v) }, function( n, v, e ) { n.setPositionPercent(e, v) } );
 			break;
-		case "bottom":
+		case "positionBottom":
 			FLEXPANEL_SetCSSValueEdge( _node, value, YGEdgeBottom, function( n, v, e ) { n.setPosition(e, v) }, function( n, v, e ) { n.setPositionPercent(e, v) } );
 			break;
 		case "start":
@@ -389,6 +389,10 @@ function FLEXPANEL_Init_From_Struct(_node, _struct, _from_wad)
 		case "position":
 		case "positionType":
 			_node.setPositionType( FLEXPANEL_StringToEnum(g_positionType, value) );
+			break;
+		case "clipContent":
+			// FD :: content clipping is stored on the context
+			context.clip_content = yyGetBool(value);
 			break;
 		case "minWidth":
 			FLEXPANEL_SetCSSValue( _node, value, function( n, v ) { n.setMinWidth(v) }, function( n, v ) { n.setMinWidthPercent(v) }, undefined );
@@ -853,6 +857,7 @@ function FLEXPANEL_CreateValueResult( _v )
     ret.__yyIsGMLObject = true;	
     variable_struct_set(ret, "unit", _v.unit);
     variable_struct_set(ret, "value", _v.value);
+	return ret;
 }
 
 
@@ -1468,7 +1473,7 @@ function UILayers_Layout_measure_node(node, width, widthMode, height, heightMode
 	{
 		for (var i = 0; i < context.elements.length; ++i)
 		{
-			var item_size = context.elements[i].measure_item(this, max_width_constraint, max_height_constraint);
+			var item_size = context.elements[i].measure_item(node, max_width_constraint, max_height_constraint);
 
 			max_w = Math.max(max_w, item_size.width);
 			max_h = Math.max(max_h, item_size.height);
@@ -1512,19 +1517,26 @@ function UILayers_Layout_measure_node(node, width, widthMode, height, heightMode
 
 function UILayers_Layout_node_position(node, outer_rect, clipping_rect, set_clipping_rect)
 {
+	console.log(flexpanel_node_get_struct(node));
+
 	var context = FLEXPANEL_GetContext(node);
+
+	local_x = node.getComputedLeft();
+	local_y = node.getComputedTop();
+	local_w = node.getComputedWidth();
+	local_h = node.getComputedHeight();
 
 	// Compute absolute bounding box for the current container
 	var container = new YYRECT();
-	container.left = outer_rect.left + node.getComputedLeft();
-	container.top = outer_rect.top + node.getComputedTop();
-	container.right = container.left + node.getComputedWidth();
-	container.bottom = container.top + node.getComputedHeight();
+	container.left = outer_rect.left + local_x;
+	container.top = outer_rect.top + local_y;
+	container.right = container.left + local_w - 1;
+	container.bottom = container.top + local_h - 1;
 
 	// Update clipping rectangle if the current context enforces clipping
-	if(context.clip_content) {
+	if (context.clip_content) {
 		set_clipping_rect = true;
-		clipping_rect = YYRECT.Intersection(container, clipping_rect);
+		clipping_rect = YYRECT.prototype.Intersection(container, clipping_rect);
 	}
 
 	// Traverse each child, passing down the current effective clip.
@@ -1826,6 +1838,8 @@ UILayerInstanceElement.prototype.create_element = function(target_layer, run_ins
 	instance.image_blend = ConvertGMColour(this.instanceColour & 0xffffff);
 	instance.image_alpha = ((this.instanceColour >> 24) & 0xff) / 255.0;
 	instance.image_angle = this.instanceAngle;
+
+	instance.m_uiNode = this;
 	// Current_Object = pI->GetObjectIndex();
 	// pI->CreatePhysicsBody(Run_Room);
 
@@ -2090,6 +2104,7 @@ UILayerSequenceElement.prototype.create_element = function(target_layer, run_ins
 	NewSequence.m_imageSpeed = this.sequenceImageSpeed;
 	NewSequence.m_playbackSpeedType = this.sequenceSpeedType;
 	NewSequence.m_order = this.elementOrder;
+	NewSequence.m_uiNode = this;
 
 	if(this.sequenceName !== undefined)
 	{
@@ -2211,8 +2226,7 @@ UILayerSequenceElement.prototype.serialise = function()
 	variable_struct_set(ret, "tileHorizontal", this.tileHorizontal);
 	variable_struct_set(ret, "tileVertical",   this.tileVertical);
 	variable_struct_set(ret, "keepAspect",     this.keepAspect);
-
-	ret.elementId = this.m_element_id;
+	variable_struct_set(ret, "elementId",      this.m_element_id);
 
 	return ret;
 };
@@ -2292,6 +2306,7 @@ UILayerSpriteElement.prototype.create_element = function(target_layer, run_insta
 	NewSprite.m_imageBlend = ConvertGMColour(this.spriteColour & 0xffffff);
 	NewSprite.m_imageAlpha = ((this.spriteColour >> 24)&0xff) / 255.0;
 	NewSprite.m_order = this.elementOrder;
+	NewSprite.m_uiNode = this;
 
 	if(this.spriteName !== undefined)
 	{
@@ -2355,8 +2370,8 @@ UILayerSpriteElement.prototype.position = function(container, clipping_rect, set
 
 			/* Size of the flexpanel to fit within. */
 			var container_size = [
-				(container.right - container.left),
-				(container.bottom - container.top),
+				(container.right - container.left + 1),
+				(container.bottom - container.top + 1),
 			];
 
 			/* Calculate the desired width/height of the sprite. */
@@ -2511,8 +2526,7 @@ UILayerSpriteElement.prototype.serialise = function()
 	variable_struct_set(ret, "tileHorizontal", this.tileHorizontal);
 	variable_struct_set(ret, "tileVertical",   this.tileVertical);
 	variable_struct_set(ret, "keepAspect",     this.keepAspect);
-
-	ret.elementId = this.m_element_id;
+	variable_struct_set(ret, "elementId", 	   this.m_element_id);
 
 	return ret;
 };
@@ -2591,8 +2605,8 @@ UILayerTextElement.prototype.create_element = function(target_layer, run_instanc
 	NewTextItem.m_angle = this.textAngle;
 	NewTextItem.m_blend = ConvertGMColour(this.textColour & 0xffffff);
 	NewTextItem.m_alpha = ((this.textColour >> 24) & 0xff) / 255.0;
-	NewTextItem.m_originX = this.textOriginX;
-	NewTextItem.m_originY = this.textOffsetY;
+	NewTextItem.m_scaleX = this.textScaleX;
+	NewTextItem.m_scaleY = this.textScaleY;
 	NewTextItem.m_text = this.textText;
 	NewTextItem.m_alignment = this.textAlignment;
 	NewTextItem.m_charSpacing = this.textCharacterSpacing;
@@ -2601,6 +2615,7 @@ UILayerTextElement.prototype.create_element = function(target_layer, run_instanc
 	NewTextItem.m_frameH = this.textFrameHeight;
 	NewTextItem.m_wrap = this.textWrap;
 	NewTextItem.m_order = this.elementOrder;
+	NewTextItem.m_uiNode = this;
 
 	if(this.textName !== undefined)
 	{
@@ -2644,9 +2659,6 @@ UILayerTextElement.prototype.position = function(container, clipping_rect, set_c
 		element.m_x = translated_position[0];
 		element.m_y = translated_position[1];
 
-		element.m_scaleX = this.textScaleX;
-		element.m_scaleY = this.textScaleY;
-
 		if(!(element.m_wrap) && (this.stretchWidth || this.stretchHeight))
 		{
 			var base_text_size = this._calc_base_text_size(element, font, (container.right - container.left));
@@ -2676,10 +2688,14 @@ UILayerTextElement.prototype.position = function(container, clipping_rect, set_c
 				element.m_scaleY = (stretched_size[1] * this.textScaleY) / base_text_size.height;
 			}
 		}
+		else {
+			element.m_scaleX = this.textScaleX;
+			element.m_scaleY = this.textScaleY;
+		}
 
 		if(this.stretchWidth)
 		{
-			element.m_frameW = (container.right - container.left) / element.m_scaleX;
+			element.m_frameW = container.GetWidth() / element.m_scaleX;
 		}
 		else{
 			element.m_frameW = this.textFrameWidth;
@@ -2687,7 +2703,7 @@ UILayerTextElement.prototype.position = function(container, clipping_rect, set_c
 
 		if(this.stretchHeight)
 		{
-			element.m_frameH = (container.bottom - container.top) / element.m_scaleY;
+			element.m_frameH = container.GetHeight() / element.m_scaleY;
 		}
 		else{
 			element.m_frameH = this.textFrameHeight;
@@ -2732,8 +2748,8 @@ UILayerTextElement.prototype.measure_item = function(node, max_width, max_height
 
 	if ((!element.m_wrap) && this.keepAspect && (this.stretchWidth || this.stretchHeight))
 	{
-		var node_width = node.GetWidth();
-		var node_height = node.GetHeight();
+		var node_width = node.getWidth();
+		var node_height = node.getHeight();
 
 		var autoW = node_width.unit == YGUnitAuto;
 		var autoH = node_height.unit == YGUnitAuto;
@@ -2842,8 +2858,7 @@ UILayerTextElement.prototype.serialise = function()
 	variable_struct_set(ret, "stretchWidth",  this.stretchWidth);
 	variable_struct_set(ret, "stretchHeight", this.stretchHeight);
 	variable_struct_set(ret, "keepAspect",    this.keepAspect);
-
-	ret.elementId = this.m_element_id;
+	variable_struct_set(ret, "elementId",     this.m_element_id);
 
 	return ret;
 };
